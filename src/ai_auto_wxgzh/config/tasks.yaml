@@ -1,0 +1,57 @@
+analyze_topic:
+  name: "analyze_topic"
+  description: |
+    解析话题{topic}，确定文章的核心要点和结构。
+    生成一份包含文章大纲和核心要点的报告。
+  agent: researcher
+  expected_output: 文章正文（标准Markdown格式）
+
+write_content:
+  name: "write_content"
+  description: |
+    基于生成的文章大纲，撰写一篇高质量的微信公众号文章。
+    确保文章内容准确、逻辑清晰、语言流畅，并具有独到的见解。
+    文章标题为{platform}|{topic}。
+  agent: writer
+  expected_output: 文章标题 + 文章正文（标准Markdown格式）
+
+audit_content:
+  name: "audit_content"
+  description: |
+    对生成的文章进行全面质量审核，包括标题（格式为{platform}|{topic}）、内容、语法等方面。
+    请检查文章是否与热门话题紧密相关，并具有独到的见解，发现文章中的错误和不足之处，生成修改后的文章。
+  agent: auditor
+  expected_output: 修改后的文章（标准Markdown格式）
+
+design_content:
+  name: "design_content"
+  description: |
+    将审核后生成的文章转化为精美的微信公众号排版，提升阅读体验和视觉吸引力。
+    请严格遵循以下要求：  
+    - 仅对审核后的文章进行排版设计和风格优化，不得生成新的文章内容。  
+    - 不得过多删减原文章内容，保持原内容的完整性和核心信息。  
+  agent: designer
+  expected_output: 排版设计后的文章（HTML格式）
+
+template_content:
+  name: "template_content"
+  description: |
+    使用 read_template_tool 读取 HTML 模板,将读取的模板内容和前面审核任务生成的文章内容作为输入，
+    适当调整模板，去除原有内容，并填充新内容，保持整体风格不变。
+    生成一个包含填充后文章内容的全新 HTML 文件。
+  agent: templater
+  expected_output: 模板填充后的文章（HTML格式）
+
+publish_task:
+  name: "publish_task"
+  description: |
+    使用 publisher_tool 从排版设计后的文章中提取内容，保存为最终文章，并发布到微信公众号，
+    使用以下参数：
+      appid={appid}，
+      appsecret={appsecret}，
+      author={author}，
+      img_api_type={img_api_type}，
+      img_api_key={img_api_key}，
+      img_api_model={img_api_model}。
+  agent: publisher
+  expected_output: 最终文章（标准HTML格式）
