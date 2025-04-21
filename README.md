@@ -2,7 +2,7 @@
 
 基于 CrewAI 的微信公众号自动化工具，自动抓取知乎、微博等平台热点，生成高质量、排版酷炫的文章并发布到微信公众号。
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue) ![CrewAI](https://img.shields.io/badge/CrewAI-0.102.0+-red) ![Stars](https://img.shields.io/github/stars/iniwap/ai_auto_wxgzh?label=收藏)
+![Python](https://img.shields.io/badge/Python-3.10+-blue)  ![PySimpleGUI](https://img.shields.io/badge/PySimpleGUI-4.60.5+-red) ![CrewAI](https://img.shields.io/badge/CrewAI-0.102.0+-red) ![Stars](https://img.shields.io/github/stars/iniwap/ai_auto_wxgzh?label=收藏)
 
 ## 🎯项目背景
 为了学习CrewAI，特开发了这个小项目。最后才发现公众号（未认证）限制巨多，有认证微信公众号的可以更好的发挥这个项目的作用。👉[高大上文章排版预览](#模板发布效果预览)
@@ -32,7 +32,9 @@
 1. 克隆仓库：`git clone https://github.com/iniwap/ai_auto_wxgzh.git`
 2. 安装依赖：`pip install -r requirements.txt`
 3. 配置 `config.yaml`（设置 微信公众号及大模型API KEY）
-4. 运行：`python .\src\ai_auto_wxgzh\main.py`
+4. 运行：
+    - 代码版本：`python -m src.ai_auto_wxgzh.crew_main`
+    - UI版本：`python .\main.py -d` (**还未完成**)
 
 ## 🔍问题定位
 如果遇到没有发布成功或者没有生成final_article的情况，又找不到问题，请临时更换下CrewAI版本：

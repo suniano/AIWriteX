@@ -6,8 +6,8 @@ import glob
 import random
 import sys
 
-from tools.wx_publisher import WeixinPublisher
-from utils import utils
+from src.ai_auto_wxgzh.tools.wx_publisher import WeixinPublisher
+from src.ai_auto_wxgzh.utils import utils
 
 
 class ReadTemplateToolInput(BaseModel):

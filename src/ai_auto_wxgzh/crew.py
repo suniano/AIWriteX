@@ -1,7 +1,7 @@
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 
-from tools.custom_tool import PublisherTool, ReadTemplateTool
+from src.ai_auto_wxgzh.tools.custom_tool import PublisherTool, ReadTemplateTool
 
 
 @CrewBase

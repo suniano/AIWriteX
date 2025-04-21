@@ -3,11 +3,11 @@ import sys
 import os
 import warnings
 import yaml
-from tools import hotnews
+from src.ai_auto_wxgzh.tools import hotnews
 
-from crew import AutowxGzh
-from utils import utils
-from tools.wx_publisher import WeixinPublisher
+from src.ai_auto_wxgzh.crew import AutowxGzh
+from src.ai_auto_wxgzh.utils import utils
+from src.ai_auto_wxgzh.tools.wx_publisher import WeixinPublisher
 
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
