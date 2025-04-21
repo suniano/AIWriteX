@@ -36,10 +36,11 @@ design_content:
 template_content:
   name: "template_content"
   description: |
-    使用 read_template_tool 读取 HTML 模板,将读取的模板内容和前面任务生成的文章内容作为输入，
+    使用 read_template_tool 读取 HTML 模板,将读取的模板内容和前置任务生成的文章内容作为输入，
     适当调整模板，去除原有内容，并填充新内容，保持整体风格不变。
-    生成一个包含填充后文章内容的全新 HTML 文件。
+    生成一个包含填充后文章内容的压缩的 HTML 文件。
   agent: templater
+  context: ["write_content", "audit_content"]
   expected_output: 模板填充后的文章（HTML格式）
 
 publish_task:
