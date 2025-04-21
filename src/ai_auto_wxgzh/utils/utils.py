@@ -173,3 +173,24 @@ def get_current_dir(dir_name=""):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     # 拼接 image 目录的相对路径
     return os.path.join(current_dir, "../../../", dir_name)
+
+
+def compress_html(content):
+    # 移除注释
+    content = re.sub(r"<!--.*?-->", "", content, flags=re.DOTALL)
+    # 移除换行和制表符
+    content = re.sub(r"[\n\t]+", "", content)
+    # 移除多余空格（保留属性分隔空格）
+    content = re.sub(r"\s+", " ", content)
+    # 移除=、>、<、;、: 前后的空格
+    content = re.sub(r"\s*([=><;,:])\s*", r"\1", content)
+    # 移除标签间空格
+    content = re.sub(r">\s+<", "><", content)
+    return content
+
+
+def decompress_html(compressed_content):
+    # 解析压缩的HTML
+    soup = BeautifulSoup(compressed_content, "html.parser")
+    # 格式化输出，添加换行和缩进
+    return soup.prettify()
