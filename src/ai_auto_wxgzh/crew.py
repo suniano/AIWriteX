@@ -107,7 +107,7 @@ class AutowxGzh:
             no_use_agent.append("微信排版专家")
             no_use_task.append("design_content")
         else:
-            no_use_agent.append("模板选择和填充专家")
+            no_use_agent.append("模板调整与内容填充专家")
             no_use_task.append("template_content")
 
         # 不开启质量审核
