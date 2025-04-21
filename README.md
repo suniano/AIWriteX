@@ -1,8 +1,8 @@
 # CrewAI微信公众号全自动生成排版发布工具
 
-基于 CrewAI 的微信公众号自动化工具，自动抓取知乎、微博等平台热点，生成高质量、排版酷炫的文章并发布到微信公众号。
-
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)  ![PySimpleGUI](https://img.shields.io/badge/PySimpleGUI-4.60.5+-red) ![CrewAI](https://img.shields.io/badge/CrewAI-0.102.0+-red) ![Stars](https://img.shields.io/github/stars/iniwap/ai_auto_wxgzh?label=收藏)
+
+基于 CrewAI 的微信公众号自动化工具，自动抓取知乎、微博等平台热点，生成高质量、排版酷炫的文章并发布到微信公众号。
 
 ![界面预览 / Interface Preview](image/preview.png)
 
