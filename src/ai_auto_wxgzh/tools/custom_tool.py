@@ -11,7 +11,7 @@ from utils import utils
 
 
 class ReadTemplateToolInput(BaseModel):
-    audit_file: str = Field(description="审核修改后的文章")
+    article_file: str = Field(description="前置任务生成的的文章内容")
 
 
 # 1. Read Template Tool
@@ -20,7 +20,7 @@ class ReadTemplateTool(BaseTool):
     description: str = "从本地读取模板文件"
     args_schema: Type[BaseModel] = ReadTemplateToolInput
 
-    def _run(self, audit_file: str) -> str:
+    def _run(self, article_file: str) -> str:
         # 获取模板文件的绝对路径
         template_dir_abs = os.path.join(
             utils.get_current_dir(),
@@ -36,10 +36,11 @@ class ReadTemplateTool(BaseTool):
             sys.exit(1)
 
         selected_template_file = random.choice(template_files_abs)
+
         with open(selected_template_file, "r", encoding="utf-8") as file:
             selected_template_content = file.read()
 
-        return selected_template_content
+        return utils.compress_html(selected_template_content)  # 压缩html，降低token消耗
 
 
 class PublisherToolInput(BaseModel):
@@ -75,6 +76,11 @@ class PublisherTool(BaseTool):
         except Exception as e:
             print(str(e))
             return "读取tmp_article.html失败，无法发布文章！"
+
+        try:
+            content = utils.decompress_html(content)
+        except Exception as e:
+            print(f"解压html出错：{str(e)}")
 
         # 提取审核报告中修改后的文章
         article = utils.extract_modified_article(content)
