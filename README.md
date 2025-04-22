@@ -32,8 +32,9 @@
 
 ## 🚀 快速开始
 1. 克隆仓库：`git clone https://github.com/iniwap/ai_auto_wxgzh.git`
-2. 安装依赖：`pip install -r requirements.txt`
-   `pip install PySimpleGUI-4.60.5-py3-none-any.whl`
+2. 安装依赖：
+   - `pip install -r requirements.txt`
+   - `pip install PySimpleGUI-4.60.5-py3-none-any.whl`
 4. 配置 `config.yaml`（设置 微信公众号及大模型API KEY）
 5. 运行：
     - 代码版本：`python -m src.ai_auto_wxgzh.crew_main`
