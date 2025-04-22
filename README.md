@@ -37,8 +37,8 @@
    - `pip install PySimpleGUI-4.60.5-py3-none-any.whl`
 4. 配置 `config.yaml`（设置 微信公众号及大模型API KEY）
 5. 运行：
-    - 代码版本：`python -m src.ai_auto_wxgzh.crew_main`
-    - UI版本：`python .\main.py -d` (**还未完成**)
+    - 无UI界面：`python -m src.ai_auto_wxgzh.crew_main`
+    - 有UI界面：`python .\main.py -d` (**还未完成**)
 
 ## 🔍问题定位
 如果遇到没有发布成功或者没有生成final_article的情况，又找不到问题，请临时更换下CrewAI版本：
