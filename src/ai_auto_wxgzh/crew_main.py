@@ -3,14 +3,15 @@ import sys
 import os
 import warnings
 import yaml
-from src.ai_auto_wxgzh.tools import hotnews
 
+from src.ai_auto_wxgzh.tools import hotnews
 from src.ai_auto_wxgzh.crew import AutowxGzh
 from src.ai_auto_wxgzh.utils import utils
-from src.ai_auto_wxgzh.tools.wx_publisher import WeixinPublisher
+from src.ai_auto_wxgzh.utils import comm
 
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
+
 
 # This main file is intended to be a way for you to run your
 # crew locally, so refrain from adding unnecessary logic into this file.
@@ -83,40 +84,9 @@ def load_config():
     )
 
 
-def autowx_gzh(only_pub=False):
-    def pub2wx(
-        image_url,
-        appid,
-        appsecret,
-        author,
-        img_api_type,
-        img_api_key,
-        img_api_model,
-    ):
-        """
-        适用于文章生成成功，直接发布到微信的情况，减少费用
-        """
-        final_article_path = os.path.join(utils.get_current_dir(), "final_article.html")
-
-        with open(final_article_path, "r", encoding="utf-8") as file:
-            article = file.read()
-
-        publisher = WeixinPublisher(
-            appid, appsecret, author, img_api_type, img_api_key, img_api_model
-        )
-
-        media_id, _ = publisher.upload_image(image_url)
-        add_draft_result = publisher.add_draft(
-            article,
-            "测试",
-            "测适用于文章生成成功，直接发布到微信的情况，减少费用试",
-            media_id,
-        )
-        publish_result = publisher.publish(add_draft_result.publishId)
-        print(f"发布结果: {publish_result}")
-
-    # 需要生成文章
+def autowx_gzh():
     credentials, platforms, api, img_api, use_template, need_auditor = load_config()
+    comm.send_update("status", "配置加载完成!")
 
     use_api = api[api["api_type"]]
     if api["api_type"] == "openrouter":  # OR每天限量，可以多个账号切换
@@ -139,7 +109,7 @@ def autowx_gzh(only_pub=False):
         topics = hotnews.get_platform_news(platform, 1)  # 使用不重复的平台
         if len(topics) == 0:
             topics = ["DeepSeek AI 提效秘籍"]
-            print("---------无法获取到热榜，请检查网络！------------")
+            comm.send_update("status", "---------无法获取到热榜，请检查网络！------------")
 
         # 如果没用配置appid，则忽略该条
         if len(appid) == 0 or len(appsecret) == 0:
@@ -156,20 +126,8 @@ def autowx_gzh(only_pub=False):
             "img_api_model": img_api_model,
         }
 
-        if only_pub:
-            # 这里目前只做测试用，想要重发失败的，需要记录状态
-            pub2wx(
-                utils.get_latest_file_os(utils.get_current_dir("image")),
-                appid,
-                appsecret,
-                author,
-                img_api_type,
-                img_api_key,
-                img_api_model,
-            )
-            return
-        else:
-            run(inputs, use_template, need_auditor)
+        comm.send_update("status", "CrewAI开始工作...")
+        run(inputs, use_template, need_auditor)
 
 
 if __name__ == "__main__":

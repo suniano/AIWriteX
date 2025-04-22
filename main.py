@@ -1,5 +1,9 @@
-# 注意： 所有用到的模块都要在此处导入
+# 注意： 打包安装软件时，所有用到的模块都要在此处导入
 
+import shutil  # noqa 841
+from collections import deque  # noqa 841
+import threading  # noqa 841
+import queue  # noqa 841
 import os  # noqa 841
 import webbrowser  # noqa 841
 import ctypes  # noqa 841
@@ -23,6 +27,7 @@ from pathlib import PurePosixPath  # noqa 841
 from dashscope import ImageSynthesis  # noqa 841
 import mimetypes  # noqa 841
 import json  # noqa 841
+import logging  # noqa 841
 
 from crewai.tools import BaseTool  # noqa 841
 from typing import Type  # noqa 841

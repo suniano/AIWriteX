@@ -5,6 +5,43 @@ import warnings
 from bs4 import BeautifulSoup
 import requests
 import time
+import sys
+import shutil
+from datetime import datetime
+
+
+def mkdir(path, clean=False):
+    if os.path.exists(path):
+        if clean:
+            shutil.rmtree(path)
+            os.makedirs(path)
+    else:
+        os.makedirs(path)
+
+
+def get_is_release_ver():
+    if getattr(sys, "frozen", None):
+        return True
+    else:
+        return False
+
+
+def get_res_path(file_name, basedir):
+
+    if get_is_release_ver():
+        return os.path.join(sys._MEIPASS, file_name)
+
+    return os.path.join(basedir, file_name)
+
+
+def get_log_path(log_name="log"):
+    log_path = get_res_path("logs", os.path.dirname(__file__))
+    if not get_is_release_ver():
+        logs_path = get_res_path("..\\..\\..\\logs", os.path.dirname(__file__))
+    mkdir(logs_path)
+    timestamp = datetime.now().strftime("%Y-%m-%d")
+    log_path = os.path.join(logs_path, f"{log_name}_{timestamp}.log")
+    return log_path
 
 
 def get_random_platform(platforms):

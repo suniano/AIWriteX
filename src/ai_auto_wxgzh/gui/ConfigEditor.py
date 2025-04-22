@@ -148,7 +148,6 @@ class ConfigEditor:
         platforms = self.config["platforms"]
         platform_rows = [
             [
-                sg.Text(f"平台 {i+1}:", size=(10, 1)),
                 sg.InputText(
                     platform["name"], key=f"-PLATFORM_NAME_{i}-", size=(20, 1), disabled=True
                 ),
@@ -160,7 +159,7 @@ class ConfigEditor:
         return sg.Tab(
             "平台",
             [
-                [sg.Text("平台列表")],
+                [sg.Text("热搜平台列表（权重之和需要为1）：")],
                 *platform_rows,
                 [sg.Button("保存配置", key="-SAVE_PLATFORMS-")],
             ],
@@ -183,7 +182,7 @@ class ConfigEditor:
             for i, cred in enumerate(credentials)
         ]
         return sg.Tab(
-            "微信",
+            "微信*",
             [
                 [sg.Text("微信公众号凭证")],
                 *wechat_rows,
@@ -241,7 +240,7 @@ class ConfigEditor:
         """创建 API TAB 布局"""
         api_data = self.config["api"]
         return sg.Tab(
-            "API",
+            "API*",
             [
                 [
                     sg.Text("API 类型"),
@@ -506,4 +505,9 @@ class ConfigEditor:
 
 
 def gui_start():
-    ConfigEditor().run()
+    config_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "../config",
+        "config.yaml",
+    )
+    ConfigEditor(config_path).run()
