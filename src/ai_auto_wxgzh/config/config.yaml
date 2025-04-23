@@ -29,8 +29,8 @@ wechat:
       appsecret: ""
       author: 作者03
 api:
-  api_type: openrouter
-  grok:
+  api_type: OpenRouter
+  Grok:
     key: XAI_API_KEY
     key_index: 0
     api_key:
@@ -40,7 +40,7 @@ api:
     model:
       - xai/grok-2-latest
     api_base: https://api.x.ai/v1/chat/completions
-  qwen:
+  Qwen:
     key: OPENAI_API_KEY
     key_index: 0
     api_key:
@@ -55,7 +55,7 @@ api:
       - openai/qwen-vl-plus
       - openai/qwen-plus
     api_base: https://dashscope.aliyuncs.com/compatible-mode/v1
-  gemini:
+  Gemini:
     key: GEMINI_API_KEY
     key_index: 0
     api_key:
@@ -68,7 +68,7 @@ api:
       - gemini-2.0-flash-lite-preview-02-05"
       - gemini-2.0-flash
     api_base: https://generativelanguage.googleapis.com
-  openrouter:
+  OpenRouter:
     key: OPENROUTER_API_KEY
     model_index: 0
     key_index: 0
@@ -83,7 +83,7 @@ api:
       - openrouter/google/gemini-2.0-flash-lite-preview-02-05:free
       - openrouter/google/gemini-2.0-flash-thinking-exp:free
     api_base: https://openrouter.ai/api/v1
-  ollama:
+  Ollama:
     key: OPENAI_API_KEY
     model_index: 0
     key_index: 0

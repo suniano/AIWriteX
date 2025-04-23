@@ -24,7 +24,7 @@
 - wechat: 支持配置多个微信公众号
 - api：支持配置多个大模型平台，使用哪个修改`api_type`即可，只需改成你的api_key，其他不用变
     - model是列表，可以选用一个平台的多个模型中的一个，修改`model_index`即可
-    - openrouter的api_key也设计了多个，可以用来切换多个号（每天有免费额度，用完切换账号即可，修改`key_index`）
+    - OpenRouter的api_key也设计了多个，可以用来切换多个号（每天有免费额度，用完切换账号即可，修改`key_index`）
 - img_api：生成图片模型，主要是用来做公众号封面图的
     - picsum: 由于生成图片消耗太大，这里提供一种随机图片方式，修改成这个`api_type`即可
 - use_template: 目前只有Claude 3.7有比较好的模板生成效果，由于无法直接使用（有API付费的可以，但消耗很高），这里特别设计是否使用内置模板（每天可以免费到Poe生成模板放到`knowledge/templates`文件夹下）
@@ -53,7 +53,7 @@ pip  install crewai==0.102.0
 pip  uninstall crewai
 pip  install crewai
 ```
-⚠️**免费的openrouter有可能服务不正常，无法正确运行（这种情况只能等用的人少的时候再试）；此外将config里的use_template改成false，可提高成功率。**
+⚠️**免费的OpenRouter有可能服务不正常，无法正确运行（这种情况只能等用的人少的时候再试）；此外将config里的use_template改成false，可提高成功率。**
 这应该跟其最近修改了付费策略有关系，免费的终究是没那么好用。
 
 ## 🔮模板发布效果预览

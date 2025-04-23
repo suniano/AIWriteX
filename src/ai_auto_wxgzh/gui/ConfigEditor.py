@@ -1,6 +1,8 @@
 import PySimpleGUI as sg
 import re
+import os
 from src.ai_auto_wxgzh.config.config import Config
+from src.ai_auto_wxgzh.utils import utils
 
 
 class ConfigEditor:
@@ -11,6 +13,17 @@ class ConfigEditor:
         self.platform_count = len(self.config.platforms)
         self.wechat_count = len(self.config.wechat_credentials)
         self.window = None
+        self.window = sg.Window(
+            "配置编辑器",
+            self.create_layout(),
+            size=(500, 600),
+            resizable=False,
+            finalize=True,
+            icon=self.__get_icon(),
+        )
+
+    def __get_icon(self):
+        return utils.get_res_path("UI\\icon.ico", os.path.dirname(__file__))
 
     def create_platforms_tab(self):
         """创建平台 TAB 布局"""
@@ -21,35 +34,48 @@ class ConfigEditor:
                     platform["name"], key=f"-PLATFORM_NAME_{i}-", size=(20, 1), disabled=True
                 ),
                 sg.Text("权重:", size=(6, 1)),
-                sg.InputText(platform["weight"], key=f"-PLATFORM_WEIGHT_{i}-", size=(10, 1)),
+                sg.InputText(platform["weight"], key=f"-PLATFORM_WEIGHT_{i}-", size=(50, 1)),
             ]
             for i, platform in enumerate(platforms)
         ]
         return sg.Tab(
             "平台",
             [
-                [sg.Text("热搜平台列表（权重之和需要为1）：")],
+                [sg.Text("热搜平台列表（根据权重随机一个平台，获取其当前的最热门话题）")],
                 *platform_rows,
                 [sg.Button("保存配置", key="-SAVE_PLATFORMS-")],
             ],
         )
 
     def create_wechat_tab(self):
-        """创建微信 TAB 布局"""
+        """创建微信 TAB 布局 (垂直排列，标签固定宽度对齐)"""
         credentials = self.config.wechat_credentials
-        wechat_rows = [
-            [
-                sg.Text(f"凭证 {i+1}:", size=(10, 1), key=f"-WECHAT_TITLE_{i}-"),
-                sg.Text("AppID:", size=(8, 1)),
-                sg.InputText(cred["appid"], key=f"-WECHAT_APPID_{i}-", size=(30, 1)),
-                sg.Text("AppSecret:", size=(10, 1)),
-                sg.InputText(cred["appsecret"], key=f"-WECHAT_SECRET_{i}-", size=(30, 1)),
-                sg.Text("作者:", size=(8, 1)),
-                sg.InputText(cred["author"], key=f"-WECHAT_AUTHOR_{i}-", size=(15, 1)),
-                sg.Button("删除", key=f"-DELETE_WECHAT_{i}-"),
-            ]
-            for i, cred in enumerate(credentials)
-        ]
+        label_width = 12  # 设置一个合适的固定标签宽度
+        wechat_rows = []
+        for i, cred in enumerate(credentials):
+            row_title = [sg.Text(f"凭证 {i+1}:", size=(label_width, 1), key=f"-WECHAT_TITLE_{i}-")]
+            wechat_rows.append(row_title)
+            wechat_rows.append(
+                [
+                    sg.Text("AppID:", size=(label_width, 1)),
+                    sg.InputText(cred["appid"], key=f"-WECHAT_APPID_{i}-", size=(50, 1)),
+                ]
+            )
+            wechat_rows.append(
+                [
+                    sg.Text("AppSecret:", size=(label_width, 1)),
+                    sg.InputText(cred["appsecret"], key=f"-WECHAT_SECRET_{i}-", size=(50, 1)),
+                ]
+            )
+            wechat_rows.append(
+                [
+                    sg.Text("作者:", size=(label_width, 1)),
+                    sg.InputText(cred["author"], key=f"-WECHAT_AUTHOR_{i}-", size=(50, 1)),
+                ]
+            )
+            wechat_rows.append([sg.Button("删除", key=f"-DELETE_WECHAT_{i}-")])
+            wechat_rows.append([sg.HorizontalSeparator()])
+
         return sg.Tab(
             "微信*",
             [
@@ -65,15 +91,15 @@ class ConfigEditor:
         layout = [
             [sg.Text(f"{api_name.upper()} 配置")],
             [
-                sg.Text("密钥名称:", size=(15, 1)),
-                sg.InputText(api_data["key"], key=f"-{api_name}_KEY-"),
+                sg.Text("KEY名称:", size=(15, 1)),
+                sg.InputText(api_data["key"], key=f"-{api_name}_KEY-", disabled=True),
             ],
             [
-                sg.Text("密钥索引:", size=(15, 1)),
+                sg.Text("KEY索引:", size=(15, 1)),
                 sg.InputText(api_data["key_index"], key=f"-{api_name}_KEY_INDEX-"),
             ],
             [
-                sg.Text("API 密钥:", size=(15, 1)),
+                sg.Text("API KEY*:", size=(15, 1)),
                 sg.InputText(", ".join(api_data["api_key"]), key=f"-{api_name}_API_KEYS-"),
             ],
             [
@@ -81,8 +107,8 @@ class ConfigEditor:
                 sg.InputText(api_data["model_index"], key=f"-{api_name}_MODEL_INDEX-"),
             ],
             [
-                sg.Text("API 基础地址:", size=(15, 1)),
-                sg.InputText(api_data["api_base"], key=f"-{api_name}_API_BASE-"),
+                sg.Text("API BASE:", size=(15, 1)),
+                sg.InputText(api_data["api_base"], key=f"-{api_name}_API_BASE-", disabled=True),
             ],
             [
                 sg.Text("模型:", size=(15, 1)),
@@ -102,7 +128,7 @@ class ConfigEditor:
                 [
                     sg.Text("API 类型"),
                     sg.Combo(
-                        ["ollama", "grok", "qwen", "gemini", "openrouter"],
+                        self.config.api_list,
                         default_value=api_data["api_type"],
                         key="-API_TYPE-",
                     ),
@@ -110,25 +136,25 @@ class ConfigEditor:
                 [
                     sg.TabGroup(
                         [
-                            [sg.Tab("Grok", self.create_api_sub_tab("grok", api_data["grok"]))],
-                            [sg.Tab("Qwen", self.create_api_sub_tab("qwen", api_data["qwen"]))],
+                            [sg.Tab("Grok", self.create_api_sub_tab("Grok", api_data["Grok"]))],
+                            [sg.Tab("Qwen", self.create_api_sub_tab("Qwen", api_data["Qwen"]))],
                             [
                                 sg.Tab(
-                                    "Gemini", self.create_api_sub_tab("gemini", api_data["gemini"])
+                                    "Gemini", self.create_api_sub_tab("Gemini", api_data["Gemini"])
                                 )
                             ],
                             [
                                 sg.Tab(
                                     "OpenRouter",
-                                    self.create_api_sub_tab("openrouter", api_data["openrouter"]),
+                                    self.create_api_sub_tab("OpenRouter", api_data["OpenRouter"]),
                                 )
                             ],
                             [
                                 sg.Tab(
-                                    "Ollama", self.create_api_sub_tab("ollama", api_data["ollama"])
+                                    "Ollama", self.create_api_sub_tab("Ollama", api_data["Ollama"])
                                 )
                             ],
-                        ]
+                        ],
                     )
                 ],
                 [sg.Button("保存配置", key="-SAVE_API-")],
@@ -194,17 +220,9 @@ class ConfigEditor:
                     ]
                 )
             ],
-            [sg.Button("退出", key="-EXIT-")],
         ]
 
     def run(self):
-        """运行配置编辑器主循环"""
-        if not self.config.load_config():
-            sg.popup_error(self.config.error_message)
-            return
-
-        self.window = sg.Window("配置编辑器", self.create_layout(), resizable=True)
-
         while True:
             event, values = self.window.read()
             if event in (sg.WIN_CLOSED, "-EXIT-"):
@@ -319,7 +337,7 @@ class ConfigEditor:
             if event == "-SAVE_API-":
                 config = self.config.get_config().copy()
                 config["api"]["api_type"] = values["-API_TYPE-"]
-                for api_name in ["grok", "qwen", "gemini", "openrouter", "ollama"]:
+                for api_name in self.config.api_list:
                     try:
                         model_index = int(values[f"-{api_name}_MODEL_INDEX-"])
                         key_index = int(values[f"-{api_name}_KEY_INDEX-"])

@@ -36,8 +36,8 @@ class Config:
                 ]
             },
             "api": {
-                "api_type": "ollama",
-                "grok": {
+                "api_type": "OpenRouter",
+                "Grok": {
                     "key": "XAI_API_KEY",
                     "key_index": 0,
                     "api_key": ["", ""],
@@ -45,7 +45,7 @@ class Config:
                     "model": ["xai/grok-2-latest"],
                     "api_base": "https://api.x.ai/v1/chat/completions",
                 },
-                "qwen": {
+                "Qwen": {
                     "key": "OPENAI_API_KEY",
                     "key_index": 0,
                     "api_key": ["", ""],
@@ -60,7 +60,7 @@ class Config:
                     ],
                     "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
                 },
-                "gemini": {
+                "Gemini": {
                     "key": "GEMINI_API_KEY",
                     "key_index": 0,
                     "api_key": ["", ""],
@@ -73,7 +73,7 @@ class Config:
                     ],
                     "api_base": "https://generativelanguage.googleapis.com",
                 },
-                "openrouter": {
+                "OpenRouter": {
                     "key": "OPENROUTER_API_KEY",
                     "model_index": 0,
                     "key_index": 0,
@@ -88,7 +88,7 @@ class Config:
                     ],
                     "api_base": "https://openrouter.ai/api/v1",
                 },
-                "ollama": {
+                "Ollama": {
                     "key": "OPENAI_API_KEY",
                     "model_index": 0,
                     "key_index": 0,
@@ -200,6 +200,19 @@ class Config:
             if self.config is None:
                 raise ValueError("配置未加载")
             return self.config["need_auditor"]
+
+    @property
+    def api_list(self):
+        with self._lock:
+            if self.config is None:
+                raise ValueError("配置未加载")
+
+            api_keys_list = list(self.config["api"].keys())
+            # 移除 "api_type" 这个键，得到您需要的列表
+            if "api_type" in api_keys_list:
+                api_keys_list.remove("api_type")
+
+            return api_keys_list
 
     def __get_config_path(self):
         config_path = utils.get_res_path("", os.path.dirname(__file__))
