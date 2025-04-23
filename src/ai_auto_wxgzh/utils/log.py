@@ -1,6 +1,11 @@
 import logging
 import sys
 import re
+import os
+import time
+from datetime import datetime
+from src.ai_auto_wxgzh.utils import utils
+from src.ai_auto_wxgzh.utils import comm
 
 
 def strip_ansi_codes(text):
@@ -48,6 +53,26 @@ def setup_logging(log_name, queue):
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.propagate = False  # 避免重复日志
-
+    for h in logger.handlers[:]:
+        if isinstance(h, logging.StreamHandler) and h is not handler:
+            logger.removeHandler(h)
     # 捕获 print 输出
     sys.stdout = QueueStreamHandler(queue)
+
+
+# 支持多种日志文件
+def get_log_path(log_name="log"):
+    log_path = utils.get_res_path("logs", os.path.dirname(__file__))
+    if not utils.get_is_release_ver():
+        logs_path = utils.get_res_path("..\\..\\..\\logs", os.path.dirname(__file__))
+    utils.mkdir(logs_path)
+    timestamp = datetime.now().strftime("%Y-%m-%d")
+    log_path = os.path.join(logs_path, f"{log_name}_{timestamp}.log")
+    return log_path
+
+
+def print_log(msg, ui_mode=False, msg_type="status"):
+    if ui_mode:
+        comm.send_update(msg_type, msg)
+    else:
+        print(f"[{time.strftime('%H:%M:%S')}] [{msg_type.upper()}]: {msg}")

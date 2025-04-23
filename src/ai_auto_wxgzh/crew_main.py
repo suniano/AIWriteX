@@ -2,12 +2,13 @@
 import sys
 import os
 import warnings
-import yaml
+import asyncio
 
 from src.ai_auto_wxgzh.tools import hotnews
 from src.ai_auto_wxgzh.crew import AutowxGzh
 from src.ai_auto_wxgzh.utils import utils
-from src.ai_auto_wxgzh.utils import comm
+from src.ai_auto_wxgzh.utils import log
+from src.ai_auto_wxgzh.config.config import Config
 
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
@@ -17,6 +18,26 @@ warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 # crew locally, so refrain from adding unnecessary logic into this file.
 # Replace with inputs you want to test with, it will automatically
 # interpolate any tasks and agents information
+
+
+# 为了能结束任务，需要异步执行
+class StopCrewException(Exception):
+    """自定义异常，用于中断 CrewAI"""
+
+    pass
+
+
+async def run_crew_async(stop_event, inputs, use_template=False, need_auditor=False):
+    """异步运行 CrewAI，检查终止信号"""
+    try:
+        if stop_event.is_set():
+            raise StopCrewException("CrewAI 任务被终止")
+        result = await AutowxGzh(use_template, need_auditor).crew().kickoff_async(inputs=inputs)
+        return result
+    except StopCrewException as e:
+        raise e
+    except Exception as e:
+        raise e
 
 
 def run(inputs, use_template=False, need_auditor=False):
@@ -66,50 +87,33 @@ def test():
         raise Exception(f"An error occurred while testing the crew: {e}")
 
 
-def load_config():
-    config_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "config",
-        "config.yaml",
-    )
-    with open(config_path, "r", encoding="utf-8") as file:
-        config = yaml.safe_load(file)
-    return (
-        config["wechat"]["credentials"],
-        config["platforms"],
-        config["api"],
-        config["img_api"],
-        config["use_template"],
-        config["need_auditor"],
-    )
+def autowx_gzh(stop_event=None, ui_mode=False):
+    config = Config.get_instance()
+    if not ui_mode:
+        if not config.load_config():
+            log.print_log("加载配置失败，请检查是否有配置！")
+            return
+        elif not config.validate_config():
+            log.print_log(f"配置填写有错误：{config.error_message}")
+            return
 
+    os.environ[config.api_key_name] = config.api_key
+    os.environ["MODEL"] = config.api_model
+    os.environ["OPENAI_API_BASE"] = config.api_apibase
 
-def autowx_gzh():
-    credentials, platforms, api, img_api, use_template, need_auditor = load_config()
-    comm.send_update("status", "配置加载完成!")
+    img_api_type = config.img_api_type
+    img_api_key = config.img_api_key
+    img_api_model = config.img_api_model
 
-    use_api = api[api["api_type"]]
-    if api["api_type"] == "openrouter":  # OR每天限量，可以多个账号切换
-        os.environ[use_api["key"]] = use_api["api_key"][use_api["key_index"]]
-    else:
-        os.environ[use_api["key"]] = use_api["api_key"]
-    os.environ["MODEL"] = use_api["model"][use_api["model_index"]]  # 采用地
-    os.environ["OPENAI_API_BASE"] = use_api["api_base"]
-
-    img_api_type = img_api["api_type"]
-    use_img_api = img_api[img_api_type]
-    img_api_key = use_img_api["api_key"]
-    img_api_model = use_img_api["model"]
-
-    for credential in credentials:
+    for credential in config.wechat_credentials:
         appid = credential["appid"]
         appsecret = credential["appsecret"]
         author = credential["author"]
-        platform = utils.get_random_platform(platforms)
+        platform = utils.get_random_platform(config.platforms)
         topics = hotnews.get_platform_news(platform, 1)  # 使用不重复的平台
         if len(topics) == 0:
             topics = ["DeepSeek AI 提效秘籍"]
-            comm.send_update("status", "---------无法获取到热榜，请检查网络！------------")
+            log.print_log("---------无法获取到热榜，请检查网络！------------", ui_mode)
 
         # 如果没用配置appid，则忽略该条
         if len(appid) == 0 or len(appsecret) == 0:
@@ -126,8 +130,34 @@ def autowx_gzh():
             "img_api_model": img_api_model,
         }
 
-        comm.send_update("status", "CrewAI开始工作...")
-        run(inputs, use_template, need_auditor)
+        log.print_log("CrewAI开始工作...", ui_mode)
+        if ui_mode:
+            try:
+                # 运行异步 kickoff
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    result = loop.run_until_complete(
+                        run_crew_async(
+                            stop_event,
+                            inputs,
+                            config.use_template,
+                            config.need_auditor,
+                        )
+                    )
+                    log.print_log(f"任务完成！结果: {result}", True)
+                finally:
+                    loop.close()
+            except StopCrewException as e:
+                log.print_log(str(e), True)
+            except Exception as e:
+                log.print_log(str(e), True, "error")
+        else:
+            try:
+                run(inputs, config.use_template, config.need_auditor)
+                # log.print_log("任务完成！")
+            except Exception as e:
+                log.print_log(f"执行出错：{str(e)}")
 
 
 if __name__ == "__main__":

@@ -1,151 +1,20 @@
 import PySimpleGUI as sg
-import yaml
-import os
 import re
+from src.ai_auto_wxgzh.config.config import Config
 
 
 class ConfigEditor:
-    def __init__(self, config_file="config.yaml"):
-        """初始化配置编辑器，加载配置文件或使用默认配置"""
+    def __init__(self):
+        """初始化配置编辑器，使用单例配置"""
         sg.theme("systemdefault")
-
-        self.config_file = config_file
-        self.default_config = {
-            "platforms": [
-                {"name": "微博", "weight": 0.3},
-                {"name": "抖音", "weight": 0.25},
-                {"name": "哔哩哔哩", "weight": 0.12},
-                {"name": "知乎热榜", "weight": 0.10},
-                {"name": "百度热点", "weight": 0.08},
-                {"name": "今日头条", "weight": 0.07},
-                {"name": "虎扑", "weight": 0.05},
-                {"name": "豆瓣小组", "weight": 0.02},
-                {"name": "澎湃新闻", "weight": 0.01},
-            ],
-            "wechat": {
-                "credentials": [
-                    {
-                        "appid": "【请在此处填写微信公众号appid】",
-                        "appsecret": "【请在此处填写微信公众号appsecret】",
-                        "author": "作者01",
-                    },
-                    {"appid": "", "appsecret": "", "author": "作者02"},
-                    {"appid": "", "appsecret": "", "author": "作者03"},
-                ]
-            },
-            "api": {
-                "api_type": "ollama",
-                "grok": {
-                    "key": "XAI_API_KEY",
-                    "api_key": "【若使用grok，请在此处填写api key】",
-                    "model_index": 0,
-                    "model": ["xai/grok-2-latest"],
-                    "api_base": "https://api.x.ai/v1/chat/completions",
-                },
-                "qwen": {
-                    "key": "OPENAI_API_KEY",
-                    "api_key": "【若使用qwen，请在此处填写api key】",
-                    "model_index": 3,
-                    "model": [
-                        "openai/deepseek-v3",
-                        "openai/deepseek-r1",
-                        "qwen-max-latest",
-                        "openai/qwen-max",
-                        "openai/qwen-vl-plus",
-                        "openai/qwen-plus",
-                    ],
-                    "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-                },
-                "gemini": {
-                    "key": "GEMINI_API_KEY",
-                    "api_key": "【若使用gemini，请在此处填写api key】",
-                    "model_index": 0,
-                    "model": [
-                        "gemini-1.5-flash",
-                        "gemini-1.5-pro",
-                        "gemini-2.0-flash-lite-preview-02-05",
-                        "gemini-2.0-flash",
-                    ],
-                    "api_base": "https://generativelanguage.googleapis.com",
-                },
-                "openrouter": {
-                    "key": "OPENROUTER_API_KEY",
-                    "model_index": 0,
-                    "key_index": 0,
-                    "api_key": [
-                        "【若使用openrouter，请在此处填写api key】",
-                        "【若使用多个openrouter，请在此处填写第二个api key】",
-                    ],
-                    "model": [
-                        "openrouter/deepseek/deepseek-chat-v3-0324:free",
-                        "openrouter/deepseek/deepseek-r1:free",
-                        "openrouter/deepseek/deepseek-chat:free",
-                        "openrouter/qwen/qwq-32b:free",
-                        "openrouter/google/gemini-2.0-flash-lite-preview-02-05:free",
-                        "openrouter/google/gemini-2.0-flash-thinking-exp:free",
-                    ],
-                    "api_base": "https://openrouter.ai/api/v1",
-                },
-                "ollama": {
-                    "key": "OPENAI_API_KEY",
-                    "model_index": 0,
-                    "api_key": "temp-key",
-                    "model": ["ollama/deepseek-r1:14b", "ollama/deepseek-r1:7b"],
-                    "api_base": "http://localhost:11434",
-                },
-            },
-            "img_api": {
-                "api_type": "picsum",
-                "ali": {
-                    "api_key": "【若使用qwen，请在此处填写api key】",
-                    "model": "wanx2.0-t2i-turbo",
-                },
-                "picsum": {"api_key": "", "model": ""},
-            },
-            "use_template": True,
-            "need_auditor": False,
-        }
-        self.config = self.load_config()
-        self.platform_count = len(self.config["platforms"])
-        self.wechat_count = len(self.config["wechat"]["credentials"])
-        self.api_key_counts = {
-            api: (
-                len(self.config["api"][api]["api_key"])
-                if isinstance(self.config["api"][api]["api_key"], list)
-                else 1
-            )
-            for api in ["openrouter"]
-        }
-        self.model_counts = {
-            api: len(self.config["api"][api]["model"])
-            for api in ["grok", "qwen", "gemini", "openrouter", "ollama"]
-        }
+        self.config = Config.get_instance()
+        self.platform_count = len(self.config.platforms)
+        self.wechat_count = len(self.config.wechat_credentials)
         self.window = None
-
-    def load_config(self):
-        """从本地 config.yaml 加载配置，若不存在使用默认配置"""
-        if os.path.exists(self.config_file):
-            try:
-                with open(self.config_file, "r", encoding="utf-8") as f:
-                    loaded_config = yaml.safe_load(f)
-                    if loaded_config:
-                        return loaded_config
-            except Exception as e:
-                sg.popup_error(f"加载 config.yaml 失败: {e}")
-        return self.default_config
-
-    def save_config(self):
-        """保存配置到 config.yaml"""
-        try:
-            with open(self.config_file, "w", encoding="utf-8") as f:
-                yaml.dump(self.config, f, allow_unicode=True, sort_keys=False)
-            sg.popup("配置已保存到 config.yaml")
-        except Exception as e:
-            sg.popup_error(f"保存失败: {e}")
 
     def create_platforms_tab(self):
         """创建平台 TAB 布局"""
-        platforms = self.config["platforms"]
+        platforms = self.config.platforms
         platform_rows = [
             [
                 sg.InputText(
@@ -167,7 +36,7 @@ class ConfigEditor:
 
     def create_wechat_tab(self):
         """创建微信 TAB 布局"""
-        credentials = self.config["wechat"]["credentials"]
+        credentials = self.config.wechat_credentials
         wechat_rows = [
             [
                 sg.Text(f"凭证 {i+1}:", size=(10, 1), key=f"-WECHAT_TITLE_{i}-"),
@@ -196,8 +65,16 @@ class ConfigEditor:
         layout = [
             [sg.Text(f"{api_name.upper()} 配置")],
             [
-                sg.Text("密钥:", size=(15, 1)),
+                sg.Text("密钥名称:", size=(15, 1)),
                 sg.InputText(api_data["key"], key=f"-{api_name}_KEY-"),
+            ],
+            [
+                sg.Text("密钥索引:", size=(15, 1)),
+                sg.InputText(api_data["key_index"], key=f"-{api_name}_KEY_INDEX-"),
+            ],
+            [
+                sg.Text("API 密钥:", size=(15, 1)),
+                sg.InputText(", ".join(api_data["api_key"]), key=f"-{api_name}_API_KEYS-"),
             ],
             [
                 sg.Text("模型索引:", size=(15, 1)),
@@ -212,33 +89,13 @@ class ConfigEditor:
                 sg.InputText(", ".join(api_data["model"]), key=f"-{api_name}_MODEL-"),
             ],
             [sg.Button("添加模型", key=f"-ADD_{api_name}_MODEL-")],
+            [sg.Button("添加 API 密钥", key=f"-ADD_{api_name}_API_KEY-")],
         ]
-        if api_name == "openrouter":
-            layout.extend(
-                [
-                    [
-                        sg.Text("密钥索引:", size=(15, 1)),
-                        sg.InputText(api_data["key_index"], key=f"-{api_name}_KEY_INDEX-"),
-                    ],
-                    [
-                        sg.Text("API 密钥:", size=(15, 1)),
-                        sg.InputText(", ".join(api_data["api_key"]), key=f"-{api_name}_API_KEYS-"),
-                    ],
-                    [sg.Button("添加 API 密钥", key=f"-ADD_{api_name}_API_KEY-")],
-                ]
-            )
-        else:
-            layout.append(
-                [
-                    sg.Text("API 密钥:", size=(15, 1)),
-                    sg.InputText(api_data["api_key"], key=f"-{api_name}_API_KEY-"),
-                ]
-            )
         return layout
 
     def create_api_tab(self):
         """创建 API TAB 布局"""
-        api_data = self.config["api"]
+        api_data = self.config.get_config()["api"]
         return sg.Tab(
             "API*",
             [
@@ -280,7 +137,7 @@ class ConfigEditor:
 
     def create_img_api_tab(self):
         """创建图像 API TAB 布局"""
-        img_api = self.config["img_api"]
+        img_api = self.config.get_config()["img_api"]
         return sg.Tab(
             "图像 API",
             [
@@ -317,16 +174,8 @@ class ConfigEditor:
         return sg.Tab(
             "其他",
             [
-                [
-                    sg.Checkbox(
-                        "使用模板", default=self.config["use_template"], key="-USE_TEMPLATE-"
-                    )
-                ],
-                [
-                    sg.Checkbox(
-                        "需要审核者", default=self.config["need_auditor"], key="-NEED_AUDITOR-"
-                    )
-                ],
+                [sg.Checkbox("使用模板", default=self.config.use_template, key="-USE_TEMPLATE-")],
+                [sg.Checkbox("需要审核者", default=self.config.need_auditor, key="-NEED_AUDITOR-")],
                 [sg.Button("保存配置", key="-SAVE_OTHER-")],
             ],
         )
@@ -350,6 +199,10 @@ class ConfigEditor:
 
     def run(self):
         """运行配置编辑器主循环"""
+        if not self.config.load_config():
+            sg.popup_error(self.config.error_message)
+            return
+
         self.window = sg.Window("配置编辑器", self.create_layout(), resizable=True)
 
         while True:
@@ -360,7 +213,7 @@ class ConfigEditor:
             # 添加微信凭证
             if event == "-ADD_WECHAT-":
                 self.window.extend_layout(
-                    self.window["微信"],
+                    self.window["微信*"],
                     [
                         [
                             sg.Text(
@@ -391,12 +244,10 @@ class ConfigEditor:
                 match = re.search(r"-DELETE_WECHAT_(\d+)", event)
                 if match:
                     index = int(match.group(1))
-                    # 标记需要删除的凭证
-                    credentials = self.config["wechat"]["credentials"]
+                    credentials = self.config.get_config()["wechat"]["credentials"]
                     if 0 <= index < len(credentials):
                         credentials.pop(index)
-                        # 重新构建微信 TAB 布局
-                        self.window["微信"].update(self.create_wechat_tab())
+                        self.window["微信*"].update(self.create_wechat_tab())
                         self.wechat_count = len(credentials)
 
             # 添加 API 模型
@@ -412,20 +263,24 @@ class ConfigEditor:
                     current_models.append(new_model)
                     self.window[f"-{api_name}_MODEL-"].update(", ".join(current_models))
 
-            # 添加 OpenRouter API 密钥
-            if event == "-ADD_openrouter_API_KEY-":
-                new_key = sg.popup_get_text("输入新 API 密钥（OpenRouter）:", title="添加 API 密钥")
+            # 添加 API 密钥
+            if event.startswith("-ADD_") and event.endswith("_API_KEY-"):
+                api_name = event.split("_")[1].lower()
+                new_key = sg.popup_get_text(
+                    f"输入新 API 密钥（{api_name}）:", title="添加 API 密钥"
+                )
                 if new_key:
                     current_keys = (
-                        values["-openrouter_API_KEYS-"].split(", ")
-                        if values["-openrouter_API_KEYS-"]
+                        values[f"-{api_name}_API_KEYS-"].split(", ")
+                        if values[f"-{api_name}_API_KEYS-"]
                         else []
                     )
                     current_keys.append(new_key)
-                    self.window["-openrouter_API_KEYS-"].update(", ".join(current_keys))
+                    self.window[f"-{api_name}_API_KEYS-"].update(", ".join(current_keys))
 
             # 保存平台配置
             if event == "-SAVE_PLATFORMS-":
+                config = self.config.get_config().copy()
                 platforms = []
                 for i in range(self.platform_count):
                     try:
@@ -435,11 +290,15 @@ class ConfigEditor:
                         sg.popup_error(f"平台 {i+1} 权重必须是数字")
                         break
                 else:
-                    self.config["platforms"] = platforms
-                    self.save_config()
+                    config["platforms"] = platforms
+                    if self.config.save_config(config):
+                        sg.popup("平台配置已保存")
+                    else:
+                        sg.popup_error(self.config.error_message)
 
             # 保存微信配置
             if event == "-SAVE_WECHAT-":
+                config = self.config.get_config().copy()
                 credentials = []
                 for i in range(self.wechat_count):
                     if self.window[f"-WECHAT_APPID_{i}-"].visible:
@@ -450,64 +309,79 @@ class ConfigEditor:
                                 "author": values[f"-WECHAT_AUTHOR_{i}-"],
                             }
                         )
-                self.config["wechat"]["credentials"] = credentials
-                self.save_config()
+                config["wechat"]["credentials"] = credentials
+                if self.config.save_config(config):
+                    sg.popup("微信配置已保存")
+                else:
+                    sg.popup_error(self.config.error_message)
 
             # 保存 API 配置
             if event == "-SAVE_API-":
-                self.config["api"]["api_type"] = values["-API_TYPE-"]
+                config = self.config.get_config().copy()
+                config["api"]["api_type"] = values["-API_TYPE-"]
                 for api_name in ["grok", "qwen", "gemini", "openrouter", "ollama"]:
                     try:
                         model_index = int(values[f"-{api_name}_MODEL_INDEX-"])
+                        key_index = int(values[f"-{api_name}_KEY_INDEX-"])
                         models = [
                             m.strip() for m in values[f"-{api_name}_MODEL-"].split(",") if m.strip()
                         ]
+                        api_keys = [
+                            k.strip()
+                            for k in values[f"-{api_name}_API_KEYS-"].split(",")
+                            if k.strip()
+                        ]
+                        if not api_keys:
+                            api_keys = [""]  # 确保至少有一个空密钥
+                        if key_index >= len(api_keys):
+                            raise ValueError(f"{api_name} 密钥索引超出范围")
+                        if model_index >= len(models):
+                            raise ValueError(f"{api_name} 模型索引超出范围")
                         api_data = {
                             "key": values[f"-{api_name}_KEY-"],
+                            "key_index": key_index,
+                            "api_key": api_keys,
                             "model_index": model_index,
                             "api_base": values[f"-{api_name}_API_BASE-"],
                             "model": models,
                         }
-                        if api_name == "openrouter":
-                            api_data["key_index"] = int(values[f"-openrouter_KEY_INDEX-"])
-                            api_data["api_key"] = [
-                                k.strip()
-                                for k in values[f"-openrouter_API_KEYS-"].split(",")
-                                if k.strip()
-                            ]
-                        else:
-                            api_data["api_key"] = values[f"-{api_name}_API_KEY-"]
-                        self.config["api"][api_name].update(api_data)
-                    except ValueError:
-                        sg.popup_error(f"{api_name} 模型索引必须是整数")
+                        config["api"][api_name].update(api_data)
+                    except ValueError as e:
+                        sg.popup_error(f"{api_name} 配置错误: {e}")
                         break
                 else:
-                    self.save_config()
+                    if self.config.save_config(config):
+                        sg.popup("API 配置已保存")
+                    else:
+                        sg.popup_error(self.config.error_message)
 
             # 保存图像 API 配置
             if event == "-SAVE_IMG_API-":
-                self.config["img_api"]["api_type"] = values["-IMG_API_TYPE-"]
-                self.config["img_api"]["ali"].update(
+                config = self.config.get_config().copy()
+                config["img_api"]["api_type"] = values["-IMG_API_TYPE-"]
+                config["img_api"]["ali"].update(
                     {"api_key": values["-ALI_API_KEY-"], "model": values["-ALI_MODEL-"]}
                 )
-                self.config["img_api"]["picsum"].update(
+                config["img_api"]["picsum"].update(
                     {"api_key": values["-PICSUM_API_KEY-"], "model": values["-PICSUM_MODEL-"]}
                 )
-                self.save_config()
+                if self.config.save_config(config):
+                    sg.popup("图像 API 配置已保存")
+                else:
+                    sg.popup_error(self.config.error_message)
 
             # 保存其他配置
             if event == "-SAVE_OTHER-":
-                self.config["use_template"] = values["-USE_TEMPLATE-"]
-                self.config["need_auditor"] = values["-NEED_AUDITOR-"]
-                self.save_config()
+                config = self.config.get_config().copy()
+                config["use_template"] = values["-USE_TEMPLATE-"]
+                config["need_auditor"] = values["-NEED_AUDITOR-"]
+                if self.config.save_config(config):
+                    sg.popup("其他配置已保存")
+                else:
+                    sg.popup_error(self.config.error_message)
 
         self.window.close()
 
 
 def gui_start():
-    config_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "../config",
-        "config.yaml",
-    )
-    ConfigEditor(config_path).run()
+    ConfigEditor().run()

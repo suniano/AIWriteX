@@ -1,5 +1,6 @@
 # 注意： 打包安装软件时，所有用到的模块都要在此处导入
 
+import asyncio  # noqa 841
 import shutil  # noqa 841
 from collections import deque  # noqa 841
 import threading  # noqa 841
