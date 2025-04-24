@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)  ![PySimpleGUI](https://img.shields.io/badge/PySimpleGUI-4.60.5+-green) ![CrewAI](https://img.shields.io/badge/CrewAI-0.102.0+-red) ![Stars](https://img.shields.io/github/stars/iniwap/ai_auto_wxgzh?label=收藏)
 
-基于 CrewAI 的微信公众号自动化工具，自动抓取知乎、微博等平台热点，生成高质量、排版酷炫的文章并发布到微信公众号。
+基于 CrewAI 的微信公众号自动化工具，自动抓取抖音、微博等平台热点，生成高质量、排版酷炫的文章并发布到微信公众号。
 
 ![界面预览 / Interface Preview](image/preview.png)
 
@@ -38,7 +38,7 @@
 4. 配置 `config.yaml`（设置 微信公众号及大模型API KEY）
 5. 运行：
     - 无UI界面：`python -m src.ai_auto_wxgzh.crew_main`
-    - 有UI界面：`python .\main.py -d` (**还未完成**)
+    - 有UI界面：`python .\main.py -d` (**进行中，部分完成**)
 
 ## 🔍问题定位
 如果遇到没有发布成功或者没有生成final_article的情况，又找不到问题，请临时更换下CrewAI版本：

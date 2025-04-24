@@ -1,6 +1,8 @@
 import PySimpleGUI as sg
 import re
 import os
+import copy  # noqa 841
+
 from src.ai_auto_wxgzh.config.config import Config
 from src.ai_auto_wxgzh.utils import utils
 
@@ -27,7 +29,8 @@ class ConfigEditor:
 
     def create_platforms_tab(self):
         """创建平台 TAB 布局"""
-        platforms = self.config.platforms
+        # 确保使用最新的 self.config.platforms 数据
+        self.platform_count = len(self.config.platforms)
         platform_rows = [
             [
                 sg.InputText(
@@ -36,21 +39,33 @@ class ConfigEditor:
                 sg.Text("权重:", size=(6, 1)),
                 sg.InputText(platform["weight"], key=f"-PLATFORM_WEIGHT_{i}-", size=(50, 1)),
             ]
-            for i, platform in enumerate(platforms)
+            for i, platform in enumerate(self.config.platforms)
         ]
-        return sg.Tab(
-            "平台",
+        layout = [
+            [sg.Text("热搜平台列表")],
+            *platform_rows,
             [
-                [sg.Text("热搜平台列表（根据权重随机一个平台，获取其当前的最热门话题）")],
-                *platform_rows,
-                [sg.Button("保存配置", key="-SAVE_PLATFORMS-")],
+                sg.Text(
+                    "Tips：\n"
+                    "1、根据权重随机一个平台，获取其当前的最热门话题；\n"
+                    "2、权重总和超过1，默认选取微博作为热搜话题。\n",
+                    size=(70, 3),
+                    text_color="gray",
+                ),
             ],
-        )
+            [
+                sg.Button("保存配置", key="-SAVE_PLATFORMS-"),
+                sg.Button("恢复默认", key="-RESET_PLATFORMS-"),
+            ],
+        ]
+        # 使用 sg.Column 包裹布局，设置 pad=(0, 0) 确保顶部无额外边距
+        return [[sg.Column(layout, scrollable=False, vertical_scroll_only=False, pad=(0, 0))]]
 
     def create_wechat_tab(self):
         """创建微信 TAB 布局 (垂直排列，标签固定宽度对齐)"""
+        self.wechat_count = len(self.config.wechat_credentials)
         credentials = self.config.wechat_credentials
-        label_width = 12  # 设置一个合适的固定标签宽度
+        label_width = 12
         wechat_rows = []
         for i, cred in enumerate(credentials):
             row_title = [sg.Text(f"凭证 {i+1}:", size=(label_width, 1), key=f"-WECHAT_TITLE_{i}-")]
@@ -73,18 +88,20 @@ class ConfigEditor:
                     sg.InputText(cred["author"], key=f"-WECHAT_AUTHOR_{i}-", size=(50, 1)),
                 ]
             )
-            wechat_rows.append([sg.Button("删除", key=f"-DELETE_WECHAT_{i}-")])
+            wechat_rows.append([sg.Button("删除", key=f"-DELETE_WECHAT_{i}-", disabled=True)])
             wechat_rows.append([sg.HorizontalSeparator()])
 
-        return sg.Tab(
-            "微信*",
+        layout = [
+            [sg.Text("微信公众号凭证")],
+            *wechat_rows,
+            [sg.Button("添加凭证", key="-ADD_WECHAT-", disabled=True)],
             [
-                [sg.Text("微信公众号凭证")],
-                *wechat_rows,
-                [sg.Button("添加凭证", key="-ADD_WECHAT-")],
-                [sg.Button("保存配置", key="-SAVE_WECHAT-")],
+                sg.Button("保存配置", key="-SAVE_WECHAT-", disabled=True),
+                sg.Button("恢复默认", key="-RESET_WECHAT-", disabled=True),
             ],
-        )
+        ]
+        # 使用 sg.Column 包裹布局，设置 pad=(0, 0) 确保顶部无额外边距
+        return [[sg.Column(layout, scrollable=False, vertical_scroll_only=False, pad=(0, 0))]]
 
     def create_api_sub_tab(self, api_name, api_data):
         """创建 API 子 TAB 布局"""
@@ -95,7 +112,7 @@ class ConfigEditor:
                 sg.InputText(api_data["key"], key=f"-{api_name}_KEY-", disabled=True),
             ],
             [
-                sg.Text("KEY索引:", size=(15, 1)),
+                sg.Text("KEY索引*:", size=(15, 1)),
                 sg.InputText(api_data["key_index"], key=f"-{api_name}_KEY_INDEX-"),
             ],
             [
@@ -103,7 +120,7 @@ class ConfigEditor:
                 sg.InputText(", ".join(api_data["api_key"]), key=f"-{api_name}_API_KEYS-"),
             ],
             [
-                sg.Text("模型索引:", size=(15, 1)),
+                sg.Text("模型索引*:", size=(15, 1)),
                 sg.InputText(api_data["model_index"], key=f"-{api_name}_MODEL_INDEX-"),
             ],
             [
@@ -111,100 +128,112 @@ class ConfigEditor:
                 sg.InputText(api_data["api_base"], key=f"-{api_name}_API_BASE-", disabled=True),
             ],
             [
-                sg.Text("模型:", size=(15, 1)),
+                sg.Text("模型*:", size=(15, 1)),
                 sg.InputText(", ".join(api_data["model"]), key=f"-{api_name}_MODEL-"),
             ],
-            [sg.Button("添加模型", key=f"-ADD_{api_name}_MODEL-")],
-            [sg.Button("添加 API 密钥", key=f"-ADD_{api_name}_API_KEY-")],
+            [
+                sg.Text(
+                    "Tips：\n"
+                    "1、API KEY和模型都是列表，如果有多个用逗号分隔；\n"
+                    "2、索引即使用哪个API KEY、模型（从0开始）；\n"
+                    "3、默认已提供较多模型，原则上只需要填写API KEY。",
+                    size=(70, 4),
+                    text_color="gray",
+                ),
+            ],
         ]
         return layout
 
     def create_api_tab(self):
         """创建 API TAB 布局"""
         api_data = self.config.get_config()["api"]
-        return sg.Tab(
-            "API*",
+        layout = [
             [
-                [
-                    sg.Text("API 类型"),
-                    sg.Combo(
-                        self.config.api_list,
-                        default_value=api_data["api_type"],
-                        key="-API_TYPE-",
-                    ),
-                ],
-                [
-                    sg.TabGroup(
-                        [
-                            [sg.Tab("Grok", self.create_api_sub_tab("Grok", api_data["Grok"]))],
-                            [sg.Tab("Qwen", self.create_api_sub_tab("Qwen", api_data["Qwen"]))],
-                            [
-                                sg.Tab(
-                                    "Gemini", self.create_api_sub_tab("Gemini", api_data["Gemini"])
-                                )
-                            ],
-                            [
-                                sg.Tab(
-                                    "OpenRouter",
-                                    self.create_api_sub_tab("OpenRouter", api_data["OpenRouter"]),
-                                )
-                            ],
-                            [
-                                sg.Tab(
-                                    "Ollama", self.create_api_sub_tab("Ollama", api_data["Ollama"])
-                                )
-                            ],
-                        ],
-                    )
-                ],
-                [sg.Button("保存配置", key="-SAVE_API-")],
+                sg.Text("API 类型"),
+                sg.Combo(
+                    self.config.api_list,
+                    default_value=api_data["api_type"],
+                    key="-API_TYPE-",
+                ),
             ],
-        )
+            [
+                sg.TabGroup(
+                    [
+                        [sg.Tab("Grok", self.create_api_sub_tab("Grok", api_data["Grok"]))],
+                        [sg.Tab("Qwen", self.create_api_sub_tab("Qwen", api_data["Qwen"]))],
+                        [sg.Tab("Gemini", self.create_api_sub_tab("Gemini", api_data["Gemini"]))],
+                        [
+                            sg.Tab(
+                                "OpenRouter",
+                                self.create_api_sub_tab("OpenRouter", api_data["OpenRouter"]),
+                            )
+                        ],
+                        [sg.Tab("Ollama", self.create_api_sub_tab("Ollama", api_data["Ollama"]))],
+                    ],
+                )
+            ],
+            [
+                sg.Button("保存配置", key="-SAVE_API-", disabled=True),
+                sg.Button("恢复默认", key="-RESET_API-", disabled=True),
+            ],
+        ]
+        # 使用 sg.Column 包裹布局，设置 pad=(0, 0) 确保顶部无额外边距
+        return [[sg.Column(layout, scrollable=False, vertical_scroll_only=False, pad=(0, 0))]]
 
     def create_img_api_tab(self):
         """创建图像 API TAB 布局"""
         img_api = self.config.get_config()["img_api"]
-        return sg.Tab(
-            "图像 API",
+        layout = [
             [
-                [
-                    sg.Text("API 类型"),
-                    sg.Combo(
-                        ["picsum", "ali"], default_value=img_api["api_type"], key="-IMG_API_TYPE-"
-                    ),
-                ],
-                [sg.Text("阿里 API 配置")],
-                [
-                    sg.Text("API 密钥:", size=(15, 1)),
-                    sg.InputText(img_api["ali"]["api_key"], key="-ALI_API_KEY-"),
-                ],
-                [
-                    sg.Text("模型:", size=(15, 1)),
-                    sg.InputText(img_api["ali"]["model"], key="-ALI_MODEL-"),
-                ],
-                [sg.Text("Picsum API 配置")],
-                [
-                    sg.Text("API 密钥:", size=(15, 1)),
-                    sg.InputText(img_api["picsum"]["api_key"], key="-PICSUM_API_KEY-"),
-                ],
-                [
-                    sg.Text("模型:", size=(15, 1)),
-                    sg.InputText(img_api["picsum"]["model"], key="-PICSUM_MODEL-"),
-                ],
-                [sg.Button("保存配置", key="-SAVE_IMG_API-")],
+                sg.Text("API 类型"),
+                sg.Combo(
+                    ["picsum", "ali"], default_value=img_api["api_type"], key="-IMG_API_TYPE-"
+                ),
             ],
-        )
+            [sg.Text("阿里 API 配置")],
+            [
+                sg.Text("API KEY:", size=(15, 1)),
+                sg.InputText(img_api["ali"]["api_key"], key="-ALI_API_KEY-"),
+            ],
+            [
+                sg.Text("模型:", size=(15, 1)),
+                sg.InputText(img_api["ali"]["model"], key="-ALI_MODEL-"),
+            ],
+            [sg.Text("Picsum API 配置")],
+            [
+                sg.Text("API KEY:", size=(15, 1)),
+                sg.InputText(img_api["picsum"]["api_key"], key="-PICSUM_API_KEY-", disabled=True),
+            ],
+            [
+                sg.Text("模型:", size=(15, 1)),
+                sg.InputText(img_api["picsum"]["model"], key="-PICSUM_MODEL-", disabled=True),
+            ],
+            [
+                sg.Text(
+                    "Tips：\n"
+                    "1、选择picsum时，无需填写KEY和模型；\n"
+                    "2、选择阿里时，均为必填项，API KEY跟QWen相同。",
+                    size=(70, 3),
+                    text_color="gray",
+                ),
+            ],
+            [
+                sg.Button("保存配置", key="-SAVE_IMG_API-"),
+                sg.Button("恢复默认", key="-RESET_IMG_API-"),
+            ],
+        ]
+        # 使用 sg.Column 包裹布局，设置 pad=(0, 0) 确保顶部无额外边距
+        return [[sg.Column(layout, scrollable=False, vertical_scroll_only=False, pad=(0, 0))]]
 
     def create_other_tab(self):
         """创建其他 TAB 布局"""
-        return sg.Tab(
-            "其他",
-            [
-                [sg.Checkbox("使用模板", default=self.config.use_template, key="-USE_TEMPLATE-")],
-                [sg.Checkbox("需要审核者", default=self.config.need_auditor, key="-NEED_AUDITOR-")],
-                [sg.Button("保存配置", key="-SAVE_OTHER-")],
-            ],
-        )
+        layout = [
+            [sg.Checkbox("使用模板", default=self.config.use_template, key="-USE_TEMPLATE-")],
+            [sg.Checkbox("需要审核者", default=self.config.need_auditor, key="-NEED_AUDITOR-")],
+            [sg.Button("保存配置", key="-SAVE_OTHER-"), sg.Button("恢复默认", key="-RESET_OTHER-")],
+        ]
+        # 使用 sg.Column 包裹布局，设置 pad=(0, 0) 确保顶部无额外边距
+        return [[sg.Column(layout, scrollable=False, vertical_scroll_only=False, pad=(0, 0))]]
 
     def create_layout(self):
         """创建主布局"""
@@ -212,15 +241,58 @@ class ConfigEditor:
             [
                 sg.TabGroup(
                     [
-                        [self.create_platforms_tab()],
-                        [self.create_wechat_tab()],
-                        [self.create_api_tab()],
-                        [self.create_img_api_tab()],
-                        [self.create_other_tab()],
-                    ]
+                        [sg.Tab("平台", self.create_platforms_tab(), key="-TAB_PLATFORM-")],
+                        [sg.Tab("微信*", self.create_wechat_tab(), key="-TAB_WECHAT-")],
+                        [sg.Tab("API*", self.create_api_tab(), key="-TAB_API-")],
+                        [sg.Tab("图像 API", self.create_img_api_tab(), key="-TAB_IMG_API-")],
+                        [sg.Tab("其他", self.create_other_tab(), key="-TAB_OTHER-")],
+                    ],
+                    key="-TAB_GROUP-",
                 )
             ],
         ]
+
+    def clear_tab(self, tab):
+        """清空指定 tab 的内容，并清理相关的 key，但不清理 Tab 本身的 key"""
+        tab_widget = tab.Widget
+        tab_key = tab.Key  # 获取 Tab 本身的 key，例如 "-TAB_PLATFORM-"
+        # 收集 tab 内的所有 key，但排除 Tab 本身的 key
+        keys_to_remove = []
+        # 遍历 window 的 key_dict，检查哪些 key 属于当前 tab
+        for key, element in list(self.window.key_dict.items()):  # 使用 list 避免运行时修改字典
+            if key == tab_key:  # 跳过 Tab 本身的 key
+                continue
+            if hasattr(element, "Widget") and element.Widget:
+                try:
+                    # 获取元素所在的父容器
+                    parent = element.Widget
+                    # 向上遍历父容器，直到找到顶层容器
+                    while parent:
+                        if parent == tab_widget:
+                            keys_to_remove.append(key)
+                            break
+                        parent = parent.master  # 继续向上查找父容器
+                except Exception as e:  # noqa 841
+                    continue
+
+        # 从 window 的 key_dict 中移除这些 key
+        for key in keys_to_remove:
+            if key in self.window.key_dict:
+                del self.window.key_dict[key]
+
+        # 清空 tab 的内容
+        for widget in tab_widget.winfo_children():
+            widget.destroy()
+
+    def update_tab(self, tab_key, new_layout):
+        """更新指定 tab 的内容"""
+        # 清空现有内容
+        tab = self.window[tab_key]
+        self.clear_tab(tab)
+        # 直接使用 new_layout（已经是 [[sg.Column(...)]]
+        self.window.extend_layout(self.window[tab_key], new_layout)
+        # 强制刷新布局，确保内容正确渲染
+        self.window.refresh()
 
     def run(self):
         while True:
@@ -229,96 +301,92 @@ class ConfigEditor:
                 break
 
             # 添加微信凭证
-            if event == "-ADD_WECHAT-":
-                self.window.extend_layout(
-                    self.window["微信*"],
+            elif event == "-ADD_WECHAT-":
+                new_row = [
                     [
-                        [
-                            sg.Text(
-                                f"凭证 {self.wechat_count+1}:",
-                                size=(10, 1),
-                                key=f"-WECHAT_TITLE_{self.wechat_count}-",
-                            ),
-                            sg.Text("AppID:", size=(8, 1)),
-                            sg.InputText(
-                                "", key=f"-WECHAT_APPID_{self.wechat_count}-", size=(30, 1)
-                            ),
-                            sg.Text("AppSecret:", size=(10, 1)),
-                            sg.InputText(
-                                "", key=f"-WECHAT_SECRET_{self.wechat_count}-", size=(30, 1)
-                            ),
-                            sg.Text("作者:", size=(8, 1)),
-                            sg.InputText(
-                                "", key=f"-WECHAT_AUTHOR_{self.wechat_count}-", size=(15, 1)
-                            ),
-                            sg.Button("删除", key=f"-DELETE_WECHAT_{self.wechat_count}-"),
-                        ]
-                    ],
-                )
+                        sg.Text(
+                            f"凭证 {self.wechat_count+1}:",
+                            size=(10, 1),
+                            key=f"-WECHAT_TITLE_{self.wechat_count}-",
+                        ),
+                        sg.Text("AppID:", size=(8, 1)),
+                        sg.InputText("", key=f"-WECHAT_APPID_{self.wechat_count}-", size=(30, 1)),
+                        sg.Text("AppSecret:", size=(10, 1)),
+                        sg.InputText("", key=f"-WECHAT_SECRET_{self.wechat_count}-", size=(30, 1)),
+                        sg.Text("作者:", size=(8, 1)),
+                        sg.InputText("", key=f"-WECHAT_AUTHOR_{self.wechat_count}-", size=(15, 1)),
+                        sg.Button("删除", key=f"-DELETE_WECHAT_{self.wechat_count}-"),
+                    ]
+                ]
+                # 使用 sg.Column 包裹新行
+                column = sg.Column(new_row, scrollable=False, vertical_scroll_only=False)
+                self.window.extend_layout(self.window["-TAB_WECHAT-"], [[column]])
+                column.Widget.pack(fill="both", expand=True)
                 self.wechat_count += 1
 
             # 删除微信凭证
-            if event.startswith("-DELETE_WECHAT_"):
+            elif event.startswith("-DELETE_WECHAT_"):
                 match = re.search(r"-DELETE_WECHAT_(\d+)", event)
                 if match:
                     index = int(match.group(1))
                     credentials = self.config.get_config()["wechat"]["credentials"]
                     if 0 <= index < len(credentials):
                         credentials.pop(index)
-                        self.window["微信*"].update(self.create_wechat_tab())
-                        self.wechat_count = len(credentials)
-
-            # 添加 API 模型
-            if event.startswith("-ADD_") and event.endswith("_MODEL-"):
-                api_name = event.split("_")[1].lower()
-                new_model = sg.popup_get_text(f"输入新模型名称（{api_name}）:", title="添加模型")
-                if new_model:
-                    current_models = (
-                        values[f"-{api_name}_MODEL-"].split(", ")
-                        if values[f"-{api_name}_MODEL-"]
-                        else []
-                    )
-                    current_models.append(new_model)
-                    self.window[f"-{api_name}_MODEL-"].update(", ".join(current_models))
-
-            # 添加 API 密钥
-            if event.startswith("-ADD_") and event.endswith("_API_KEY-"):
-                api_name = event.split("_")[1].lower()
-                new_key = sg.popup_get_text(
-                    f"输入新 API 密钥（{api_name}）:", title="添加 API 密钥"
-                )
-                if new_key:
-                    current_keys = (
-                        values[f"-{api_name}_API_KEYS-"].split(", ")
-                        if values[f"-{api_name}_API_KEYS-"]
-                        else []
-                    )
-                    current_keys.append(new_key)
-                    self.window[f"-{api_name}_API_KEYS-"].update(", ".join(current_keys))
+                        # 更新配置
+                        config = self.config.get_config()
+                        config["wechat"]["credentials"] = credentials
+                        self.config.save_config(config)
+                        self.update_tab("-TAB_WECHAT-", self.create_wechat_tab())
 
             # 保存平台配置
-            if event == "-SAVE_PLATFORMS-":
+            elif event.startswith("-SAVE_PLATFORMS-"):
                 config = self.config.get_config().copy()
                 platforms = []
-                for i in range(self.platform_count):
+                total_weight = 0.0
+                # 动态检测界面上实际的平台数量
+                i = 0
+                while f"-PLATFORM_NAME_{i}-" in values:
                     try:
                         weight = float(values[f"-PLATFORM_WEIGHT_{i}-"])
+                        # 限定weight范围
+                        if weight < 0:
+                            weight = 0
+                            sg.popup_error(
+                                f"平台 {values[f'-PLATFORM_NAME_{i}-']} 权重小于0，将被设为0"
+                            )
+                            # 更新界面上的权重值
+                            self.window[f"-PLATFORM_WEIGHT_{i}-"].update(value=str(weight))
+                        elif weight > 1:
+                            weight = 1
+                            sg.popup_error(
+                                f"平台 {values[f'-PLATFORM_NAME_{i}-']} 权重大于1，将被设为1"
+                            )
+                            # 更新界面上的权重值
+                            self.window[f"-PLATFORM_WEIGHT_{i}-"].update(value=str(weight))
+
+                        total_weight += weight
                         platforms.append({"name": values[f"-PLATFORM_NAME_{i}-"], "weight": weight})
                     except ValueError:
-                        sg.popup_error(f"平台 {i+1} 权重必须是数字")
+                        sg.popup_error(f"平台 {values[f'-PLATFORM_NAME_{i}-']} 权重必须是数字")
                         break
+                    i += 1
                 else:
+                    if total_weight > 1.0:
+                        sg.popup("平台权重之和超过1，将默认选取微博热搜。")
                     config["platforms"] = platforms
                     if self.config.save_config(config):
+                        self.platform_count = len(platforms)  # 同步更新计数器
                         sg.popup("平台配置已保存")
                     else:
                         sg.popup_error(self.config.error_message)
 
             # 保存微信配置
-            if event == "-SAVE_WECHAT-":
+            elif event.startswith("-SAVE_WECHAT-"):
                 config = self.config.get_config().copy()
                 credentials = []
-                for i in range(self.wechat_count):
+                # 动态检测界面上实际的微信凭证数量
+                i = 0
+                while f"-WECHAT_APPID_{i}-" in values:
                     if self.window[f"-WECHAT_APPID_{i}-"].visible:
                         credentials.append(
                             {
@@ -327,14 +395,16 @@ class ConfigEditor:
                                 "author": values[f"-WECHAT_AUTHOR_{i}-"],
                             }
                         )
+                    i += 1
                 config["wechat"]["credentials"] = credentials
                 if self.config.save_config(config):
+                    self.wechat_count = len(credentials)  # 同步更新计数器
                     sg.popup("微信配置已保存")
                 else:
                     sg.popup_error(self.config.error_message)
 
             # 保存 API 配置
-            if event == "-SAVE_API-":
+            elif event.startswith("-SAVE_API-"):
                 config = self.config.get_config().copy()
                 config["api"]["api_type"] = values["-API_TYPE-"]
                 for api_name in self.config.api_list:
@@ -374,7 +444,7 @@ class ConfigEditor:
                         sg.popup_error(self.config.error_message)
 
             # 保存图像 API 配置
-            if event == "-SAVE_IMG_API-":
+            elif event.startswith("-SAVE_IMG_API-"):
                 config = self.config.get_config().copy()
                 config["img_api"]["api_type"] = values["-IMG_API_TYPE-"]
                 config["img_api"]["ali"].update(
@@ -389,12 +459,72 @@ class ConfigEditor:
                     sg.popup_error(self.config.error_message)
 
             # 保存其他配置
-            if event == "-SAVE_OTHER-":
+            elif event.startswith("-SAVE_OTHER-"):
                 config = self.config.get_config().copy()
                 config["use_template"] = values["-USE_TEMPLATE-"]
                 config["need_auditor"] = values["-NEED_AUDITOR-"]
                 if self.config.save_config(config):
                     sg.popup("其他配置已保存")
+                else:
+                    sg.popup_error(self.config.error_message)
+
+            # 恢复默认配置 - 平台
+            elif event.startswith("-RESET_PLATFORMS-"):
+                config = self.config.get_config().copy()
+                config["platforms"] = copy.deepcopy(self.config.default_config["platforms"])
+                if self.config.save_config(config):
+                    self.platform_count = len(config["platforms"])
+                    # 清空并重建平台 tab
+                    self.update_tab("-TAB_PLATFORM-", self.create_platforms_tab())
+                    sg.popup("已恢复默认平台配置")
+                else:
+                    sg.popup_error(self.config.error_message)
+
+            # 恢复默认配置 - 微信
+            elif event.startswith("-RESET_WECHAT-"):
+                config = self.config.get_config().copy()
+                config["wechat"]["credentials"] = copy.deepcopy(
+                    self.config.default_config["wechat"]["credentials"]
+                )
+                if self.config.save_config(config):
+                    self.wechat_count = len(config["wechat"]["credentials"])
+                    # 清空并重建微信 tab
+                    self.update_tab("-TAB_WECHAT-", self.create_wechat_tab())
+                    sg.popup("已恢复默认微信配置")
+                else:
+                    sg.popup_error(self.config.error_message)
+
+            # 恢复默认配置 - API
+            elif event.startswith("-RESET_API-"):
+                config = self.config.get_config().copy()
+                config["api"] = copy.deepcopy(self.config.default_config["api"])
+                if self.config.save_config(config):
+                    # 清空并重建 API tab
+                    self.update_tab("-TAB_API-", self.create_api_tab())
+                    sg.popup("已恢复默认API配置")
+                else:
+                    sg.popup_error(self.config.error_message)
+
+            # 恢复默认配置 - 图像 API
+            elif event.startswith("-RESET_IMG_API-"):
+                config = self.config.get_config().copy()
+                config["img_api"] = copy.deepcopy(self.config.default_config["img_api"])
+                if self.config.save_config(config):
+                    # 清空并重建图像 API tab
+                    self.update_tab("-TAB_IMG_API-", self.create_img_api_tab())
+                    sg.popup("已恢复默认图像API配置")
+                else:
+                    sg.popup_error(self.config.error_message)
+
+            # 恢复默认配置 - 其他
+            elif event.startswith("-RESET_OTHER-"):
+                config = self.config.get_config().copy()
+                config["use_template"] = self.config.default_config["use_template"]
+                config["need_auditor"] = self.config.default_config["need_auditor"]
+                if self.config.save_config(config):
+                    # 清空并重建其他 tab
+                    self.update_tab("-TAB_OTHER-", self.create_other_tab())
+                    sg.popup("已恢复默认其他配置")
                 else:
                     sg.popup_error(self.config.error_message)
 
