@@ -15,6 +15,7 @@
 - 自动获取各大平台热门话题
 - 自动根据话题生成文章、排版（CrewAI多个角色共同完成）
 - 自动发图文消息到公众号
+- **UI可视化，界面操作，方便配置编辑**
 
 ### 🎁个性化功能
 
@@ -37,8 +38,8 @@
    - `pip install PySimpleGUI-4.60.5-py3-none-any.whl`
 4. 配置 `config.yaml`（设置 微信公众号及大模型API KEY）
 5. 运行：
+    - 有UI界面：`python .\main.py -d` (**推荐**)
     - 无UI界面：`python -m src.ai_auto_wxgzh.crew_main`
-    - 有UI界面：`python .\main.py -d` (**进行中，部分完成**)
 
 ## 🔍问题定位
 如果遇到没有发布成功或者没有生成final_article的情况，又找不到问题，请临时更换下CrewAI版本：
@@ -78,8 +79,7 @@ pip  install crewai
 - 优化处理，减少不必要的token消耗
 - 增加功能，使输出效果更好
 - 增加容错，提升成功率
-- 增加界面，可视化操作
-- 制作成Windows软件，不再依赖开发环境
+- **制作成Windows软件，不再依赖开发环境**
 
 ## 📌其他说明
 ~~由于不熟悉微信公众号开发，哪位知道如何正确的使用“position: absolute;”，麻烦提一个issue 或者PR给我。

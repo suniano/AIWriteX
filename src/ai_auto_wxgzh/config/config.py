@@ -5,6 +5,13 @@ from src.ai_auto_wxgzh.utils import comm
 from src.ai_auto_wxgzh.utils import utils
 
 
+# 自定义 Dumper，仅调整数组子元素缩进
+class IndentedDumper(yaml.SafeDumper):
+    def increase_indent(self, flow=False, indentless=False):
+        # 强制数组子元素（-）缩进 2 个空格
+        return super().increase_indent(flow, False)
+
+
 class Config:
     _instance = None
     _lock = threading.Lock()
@@ -293,13 +300,21 @@ class Config:
                 raise ValueError("配置未加载")
             return self.config
 
-    def save_config(self, config, config_file="config.yaml"):
+    def save_config(self, config):
         """保存配置到 config.yaml，不验证"""
         with self._lock:
             self.config = config
             try:
-                with open(config_file, "w", encoding="utf-8") as f:
-                    yaml.dump(config, f, allow_unicode=True, sort_keys=False)
+                with open(self._config_path, "w", encoding="utf-8") as f:
+                    yaml.dump(
+                        config,
+                        f,
+                        Dumper=IndentedDumper,
+                        allow_unicode=True,
+                        sort_keys=False,
+                        default_flow_style=False,
+                        indent=2,
+                    )
                 return True
             except Exception as e:
                 self.error_message = f"保存 config.yaml 失败: {e}"

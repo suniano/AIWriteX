@@ -65,7 +65,7 @@ api:
     model:
       - gemini-1.5-flash
       - gemini-1.5-pro
-      - gemini-2.0-flash-lite-preview-02-05"
+      - gemini-2.0-flash-lite-preview-02-05
       - gemini-2.0-flash
     api_base: https://generativelanguage.googleapis.com
   OpenRouter:
@@ -88,7 +88,7 @@ api:
     model_index: 0
     key_index: 0
     api_key:
-      - "tmp-key"
+      - tmp-key
       - ""
     model:
       - ollama/deepseek-r1:14b

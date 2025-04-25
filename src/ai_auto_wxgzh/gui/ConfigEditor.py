@@ -24,6 +24,9 @@ class ConfigEditor:
             icon=self.__get_icon(),
         )
 
+        # 设置默认选中的API类型的TAB
+        self.__default_select_api_tab()
+
     def __get_icon(self):
         return utils.get_res_path("UI\\icon.ico", os.path.dirname(__file__))
 
@@ -62,45 +65,61 @@ class ConfigEditor:
         return [[sg.Column(layout, scrollable=False, vertical_scroll_only=False, pad=(0, 0))]]
 
     def create_wechat_tab(self):
-        """创建微信 TAB 布局 (垂直排列，标签固定宽度对齐)"""
-        self.wechat_count = len(self.config.wechat_credentials)
+        """创建微信 TAB 布局 (垂直排列，标签固定宽度对齐，支持滚动)"""
         credentials = self.config.wechat_credentials
+        self.wechat_count = len(credentials)
         label_width = 12
         wechat_rows = []
         for i, cred in enumerate(credentials):
-            row_title = [sg.Text(f"凭证 {i+1}:", size=(label_width, 1), key=f"-WECHAT_TITLE_{i}-")]
-            wechat_rows.append(row_title)
+            wechat_rows.append(
+                [sg.Text(f"凭证 {i+1}:", size=(label_width, 1), key=f"-WECHAT_TITLE_{i}-")]
+            )
             wechat_rows.append(
                 [
-                    sg.Text("AppID:", size=(label_width, 1)),
-                    sg.InputText(cred["appid"], key=f"-WECHAT_APPID_{i}-", size=(50, 1)),
+                    sg.Text("AppID*:", size=(label_width, 1)),
+                    sg.InputText(cred["appid"], key=f"-WECHAT_APPID_{i}-", size=(45, 1)),
                 ]
             )
             wechat_rows.append(
                 [
-                    sg.Text("AppSecret:", size=(label_width, 1)),
-                    sg.InputText(cred["appsecret"], key=f"-WECHAT_SECRET_{i}-", size=(50, 1)),
+                    sg.Text("AppSecret*:", size=(label_width, 1)),
+                    sg.InputText(cred["appsecret"], key=f"-WECHAT_SECRET_{i}-", size=(45, 1)),
                 ]
             )
             wechat_rows.append(
                 [
                     sg.Text("作者:", size=(label_width, 1)),
-                    sg.InputText(cred["author"], key=f"-WECHAT_AUTHOR_{i}-", size=(50, 1)),
+                    sg.InputText(cred["author"], key=f"-WECHAT_AUTHOR_{i}-", size=(45, 1)),
                 ]
             )
-            wechat_rows.append([sg.Button("删除", key=f"-DELETE_WECHAT_{i}-", disabled=True)])
+            wechat_rows.append([sg.Button("删除", key=f"-DELETE_WECHAT_{i}-", disabled=i == 0)])
             wechat_rows.append([sg.HorizontalSeparator()])
 
         layout = [
             [sg.Text("微信公众号凭证")],
-            *wechat_rows,
-            [sg.Button("添加凭证", key="-ADD_WECHAT-", disabled=True)],
             [
-                sg.Button("保存配置", key="-SAVE_WECHAT-", disabled=True),
-                sg.Button("恢复默认", key="-RESET_WECHAT-", disabled=True),
+                sg.Column(
+                    wechat_rows,
+                    key="-WECHAT_CREDENTIALS_COLUMN-",
+                    scrollable=True,
+                    vertical_scroll_only=True,
+                    size=(480, 400),
+                    expand_y=True,
+                )
+            ],
+            [
+                sg.Text(
+                    "Tips：添加凭证、填写后，请先保存再继续添加（至少填写一个）。",
+                    size=(70, 1),
+                    text_color="gray",
+                ),
+            ],
+            [sg.Button("添加凭证", key="-ADD_WECHAT-")],
+            [
+                sg.Button("保存配置", key="-SAVE_WECHAT-"),
+                sg.Button("恢复默认", key="-RESET_WECHAT-"),
             ],
         ]
-        # 使用 sg.Column 包裹布局，设置 pad=(0, 0) 确保顶部无额外边距
         return [[sg.Column(layout, scrollable=False, vertical_scroll_only=False, pad=(0, 0))]]
 
     def create_api_sub_tab(self, api_name, api_data):
@@ -110,6 +129,10 @@ class ConfigEditor:
             [
                 sg.Text("KEY名称:", size=(15, 1)),
                 sg.InputText(api_data["key"], key=f"-{api_name}_KEY-", disabled=True),
+            ],
+            [
+                sg.Text("API BASE:", size=(15, 1)),
+                sg.InputText(api_data["api_base"], key=f"-{api_name}_API_BASE-", disabled=True),
             ],
             [
                 sg.Text("KEY索引*:", size=(15, 1)),
@@ -124,10 +147,6 @@ class ConfigEditor:
                 sg.InputText(api_data["model_index"], key=f"-{api_name}_MODEL_INDEX-"),
             ],
             [
-                sg.Text("API BASE:", size=(15, 1)),
-                sg.InputText(api_data["api_base"], key=f"-{api_name}_API_BASE-", disabled=True),
-            ],
-            [
                 sg.Text("模型*:", size=(15, 1)),
                 sg.InputText(", ".join(api_data["model"]), key=f"-{api_name}_MODEL-"),
             ],
@@ -136,13 +155,25 @@ class ConfigEditor:
                     "Tips：\n"
                     "1、API KEY和模型都是列表，如果有多个用逗号分隔；\n"
                     "2、索引即使用哪个API KEY、模型（从0开始）；\n"
-                    "3、默认已提供较多模型，原则上只需要填写API KEY。",
-                    size=(70, 4),
+                    "3、默认已提供较多模型，原则上只需要填写API KEY；\n"
+                    "4、只需要填写选中的API类型相应的参数。",
+                    size=(70, 5),
                     text_color="gray",
                 ),
             ],
         ]
         return layout
+
+    def __default_select_api_tab(self):
+        # 设置 API TabGroup 的默认选中子 TAB
+        api_data = self.config.get_config()["api"]
+        tab_group = self.window["-API_TAB_GROUP-"]
+        for tab in tab_group.Widget.tabs():
+            tab_text = tab_group.Widget.tab(tab, "text")
+            if tab_text == api_data["api_type"]:
+                tab_group.Widget.select(tab)
+                break
+        self.window.refresh()
 
     def create_api_tab(self):
         """创建 API TAB 布局"""
@@ -154,6 +185,7 @@ class ConfigEditor:
                     self.config.api_list,
                     default_value=api_data["api_type"],
                     key="-API_TYPE-",
+                    enable_events=True,
                 ),
             ],
             [
@@ -170,11 +202,12 @@ class ConfigEditor:
                         ],
                         [sg.Tab("Ollama", self.create_api_sub_tab("Ollama", api_data["Ollama"]))],
                     ],
+                    key="-API_TAB_GROUP-",
                 )
             ],
             [
-                sg.Button("保存配置", key="-SAVE_API-", disabled=True),
-                sg.Button("恢复默认", key="-RESET_API-", disabled=True),
+                sg.Button("保存配置", key="-SAVE_API-"),
+                sg.Button("恢复默认", key="-RESET_API-"),
             ],
         ]
         # 使用 sg.Column 包裹布局，设置 pad=(0, 0) 确保顶部无额外边距
@@ -230,6 +263,19 @@ class ConfigEditor:
         layout = [
             [sg.Checkbox("使用模板", default=self.config.use_template, key="-USE_TEMPLATE-")],
             [sg.Checkbox("需要审核者", default=self.config.need_auditor, key="-NEED_AUDITOR-")],
+            [
+                sg.Text(
+                    "Tips：\n"
+                    "1、使用模板：\n"
+                    "    - 使用：本地内置，程序自动选取一个并将生成的文章填充到模板里\n"
+                    "    - 不使用：AI根据要求生成模板，并填充文章\n"
+                    "2、需要审核者：\n"
+                    "    - 需要：则在生成文章后执行审核，文章可能更好，但Token消耗更高\n"
+                    "    - 不需要：生成文章后直接填充模板，消耗低，文章可能略差\n",
+                    size=(70, 7),
+                    text_color="gray",
+                ),
+            ],
             [sg.Button("保存配置", key="-SAVE_OTHER-"), sg.Button("恢复默认", key="-RESET_OTHER-")],
         ]
         # 使用 sg.Column 包裹布局，设置 pad=(0, 0) 确保顶部无额外边距
@@ -241,10 +287,10 @@ class ConfigEditor:
             [
                 sg.TabGroup(
                     [
-                        [sg.Tab("平台", self.create_platforms_tab(), key="-TAB_PLATFORM-")],
-                        [sg.Tab("微信*", self.create_wechat_tab(), key="-TAB_WECHAT-")],
-                        [sg.Tab("API*", self.create_api_tab(), key="-TAB_API-")],
-                        [sg.Tab("图像 API", self.create_img_api_tab(), key="-TAB_IMG_API-")],
+                        [sg.Tab("热搜平台", self.create_platforms_tab(), key="-TAB_PLATFORM-")],
+                        [sg.Tab("微信公众号*", self.create_wechat_tab(), key="-TAB_WECHAT-")],
+                        [sg.Tab("大模型API*", self.create_api_tab(), key="-TAB_API-")],
+                        [sg.Tab("图片生成API", self.create_img_api_tab(), key="-TAB_IMG_API-")],
                         [sg.Tab("其他", self.create_other_tab(), key="-TAB_OTHER-")],
                     ],
                     key="-TAB_GROUP-",
@@ -300,43 +346,53 @@ class ConfigEditor:
             if event in (sg.WIN_CLOSED, "-EXIT-"):
                 break
 
+            # 切换API TAB
+            elif event == "-API_TYPE-":
+                tab_group = self.window["-API_TAB_GROUP-"]
+                # 遍历 TabGroup 的子 TAB，找到匹配的标题
+                for tab in tab_group.Widget.tabs():
+                    tab_text = tab_group.Widget.tab(tab, "text")  # 直接在 Notebook 上调用 tab()
+                    if tab_text == values["-API_TYPE-"]:
+                        tab_group.Widget.select(tab)
+                        break
+                self.window.refresh()
+
             # 添加微信凭证
             elif event == "-ADD_WECHAT-":
-                new_row = [
-                    [
-                        sg.Text(
-                            f"凭证 {self.wechat_count+1}:",
-                            size=(10, 1),
-                            key=f"-WECHAT_TITLE_{self.wechat_count}-",
-                        ),
-                        sg.Text("AppID:", size=(8, 1)),
-                        sg.InputText("", key=f"-WECHAT_APPID_{self.wechat_count}-", size=(30, 1)),
-                        sg.Text("AppSecret:", size=(10, 1)),
-                        sg.InputText("", key=f"-WECHAT_SECRET_{self.wechat_count}-", size=(30, 1)),
-                        sg.Text("作者:", size=(8, 1)),
-                        sg.InputText("", key=f"-WECHAT_AUTHOR_{self.wechat_count}-", size=(15, 1)),
-                        sg.Button("删除", key=f"-DELETE_WECHAT_{self.wechat_count}-"),
-                    ]
-                ]
-                # 使用 sg.Column 包裹新行
-                column = sg.Column(new_row, scrollable=False, vertical_scroll_only=False)
-                self.window.extend_layout(self.window["-TAB_WECHAT-"], [[column]])
-                column.Widget.pack(fill="both", expand=True)
-                self.wechat_count += 1
-
+                credentials = self.config.wechat_credentials  # 直接使用内存中的 credentials
+                credentials.append({"appid": "", "appsecret": "", "author": ""})
+                self.wechat_count = len(credentials)
+                try:
+                    self.update_tab("-TAB_WECHAT-", self.create_wechat_tab())
+                    self.window["-WECHAT_CREDENTIALS_COLUMN-"].contents_changed()
+                    self.window["-WECHAT_CREDENTIALS_COLUMN-"].Widget.canvas.yview_moveto(1.0)
+                    self.window.TKroot.update_idletasks()
+                    self.window.TKroot.update()
+                    self.window.refresh()
+                    self.window["-TAB_WECHAT-"].Widget.update()
+                    self.window["-WECHAT_CREDENTIALS_COLUMN-"].Widget.update()
+                except Exception as e:
+                    sg.popup_error(f"添加凭证失败: {e}", icon=self.__get_icon())
             # 删除微信凭证
             elif event.startswith("-DELETE_WECHAT_"):
                 match = re.search(r"-DELETE_WECHAT_(\d+)", event)
                 if match:
                     index = int(match.group(1))
-                    credentials = self.config.get_config()["wechat"]["credentials"]
+                    credentials = self.config.wechat_credentials  # 直接使用内存中的 credentials
                     if 0 <= index < len(credentials):
-                        credentials.pop(index)
-                        # 更新配置
-                        config = self.config.get_config()
-                        config["wechat"]["credentials"] = credentials
-                        self.config.save_config(config)
-                        self.update_tab("-TAB_WECHAT-", self.create_wechat_tab())
+                        try:
+                            credentials.pop(index)
+                            self.wechat_count = len(credentials)
+                            self.update_tab("-TAB_WECHAT-", self.create_wechat_tab())
+                            self.window.TKroot.update_idletasks()
+                            self.window.TKroot.update()
+                            self.window.refresh()
+                            self.window["-TAB_WECHAT-"].Widget.update()
+                            self.window["-WECHAT_CREDENTIALS_COLUMN-"].Widget.update()
+                        except Exception as e:
+                            sg.popup_error(f"删除凭证失败: {e}", icon=self.__get_icon())
+                    else:
+                        sg.popup_error(f"无效的凭证索引: {index}", icon=self.__get_icon())
 
             # 保存平台配置
             elif event.startswith("-SAVE_PLATFORMS-"):
@@ -352,14 +408,16 @@ class ConfigEditor:
                         if weight < 0:
                             weight = 0
                             sg.popup_error(
-                                f"平台 {values[f'-PLATFORM_NAME_{i}-']} 权重小于0，将被设为0"
+                                f"平台 {values[f'-PLATFORM_NAME_{i}-']} 权重小于0，将被设为0",
+                                icon=self.__get_icon(),
                             )
                             # 更新界面上的权重值
                             self.window[f"-PLATFORM_WEIGHT_{i}-"].update(value=str(weight))
                         elif weight > 1:
                             weight = 1
                             sg.popup_error(
-                                f"平台 {values[f'-PLATFORM_NAME_{i}-']} 权重大于1，将被设为1"
+                                f"平台 {values[f'-PLATFORM_NAME_{i}-']} 权重大于1，将被设为1",
+                                icon=self.__get_icon(),
                             )
                             # 更新界面上的权重值
                             self.window[f"-PLATFORM_WEIGHT_{i}-"].update(value=str(weight))
@@ -367,41 +425,79 @@ class ConfigEditor:
                         total_weight += weight
                         platforms.append({"name": values[f"-PLATFORM_NAME_{i}-"], "weight": weight})
                     except ValueError:
-                        sg.popup_error(f"平台 {values[f'-PLATFORM_NAME_{i}-']} 权重必须是数字")
+                        sg.popup_error(
+                            f"平台 {values[f'-PLATFORM_NAME_{i}-']} 权重必须是数字",
+                            icon=self.__get_icon(),
+                        )
                         break
                     i += 1
                 else:
                     if total_weight > 1.0:
-                        sg.popup("平台权重之和超过1，将默认选取微博热搜。")
+                        sg.popup(
+                            "平台权重之和超过1，将默认选取微博热搜。",
+                            icon=self.__get_icon(),
+                        )
                     config["platforms"] = platforms
                     if self.config.save_config(config):
                         self.platform_count = len(platforms)  # 同步更新计数器
-                        sg.popup("平台配置已保存")
+                        sg.popup(
+                            "平台配置已保存",
+                            icon=self.__get_icon(),
+                        )
                     else:
-                        sg.popup_error(self.config.error_message)
+                        sg.popup_error(
+                            self.config.error_message,
+                            icon=self.__get_icon(),
+                        )
 
             # 保存微信配置
             elif event.startswith("-SAVE_WECHAT-"):
                 config = self.config.get_config().copy()
                 credentials = []
-                # 动态检测界面上实际的微信凭证数量
+                # 遍历窗口中所有可能的微信凭证键
+                max_index = -1
+                for key in self.window.AllKeysDict:
+                    if isinstance(key, str) and key.startswith("-WECHAT_APPID_"):  # 添加类型检查
+                        try:
+                            # 提取索引，移除尾部连字符
+                            index = int(key.split("_")[-1].rstrip("-"))
+                            max_index = max(max_index, index)
+                        except ValueError:
+                            continue  # 跳过无效键
+                max_index = max_index + 1 if max_index >= 0 else 0
                 i = 0
-                while f"-WECHAT_APPID_{i}-" in values:
-                    if self.window[f"-WECHAT_APPID_{i}-"].visible:
+                while i <= max_index:
+                    appid_key = f"-WECHAT_APPID_{i}-"
+                    secret_key = f"-WECHAT_SECRET_{i}-"
+                    author_key = f"-WECHAT_AUTHOR_{i}-"
+                    # 检查键是否存在且元素可见
+                    if (
+                        appid_key in self.window.AllKeysDict
+                        and secret_key in self.window.AllKeysDict
+                        and author_key in self.window.AllKeysDict
+                        and self.window[appid_key].visible
+                    ):
                         credentials.append(
                             {
-                                "appid": values[f"-WECHAT_APPID_{i}-"],
-                                "appsecret": values[f"-WECHAT_SECRET_{i}-"],
-                                "author": values[f"-WECHAT_AUTHOR_{i}-"],
+                                "appid": values.get(appid_key, ""),
+                                "appsecret": values.get(secret_key, ""),
+                                "author": values.get(author_key, ""),
                             }
                         )
                     i += 1
                 config["wechat"]["credentials"] = credentials
                 if self.config.save_config(config):
                     self.wechat_count = len(credentials)  # 同步更新计数器
-                    sg.popup("微信配置已保存")
+                    # 刷新界面以确保一致
+                    self.update_tab("-TAB_WECHAT-", self.create_wechat_tab())
+                    self.window.TKroot.update_idletasks()
+                    self.window.TKroot.update()
+                    self.window.refresh()
+                    self.window["-TAB_WECHAT-"].Widget.update()
+                    self.window["-WECHAT_CREDENTIALS_COLUMN-"].Widget.update()
+                    sg.popup("微信配置已保存", icon=self.__get_icon())
                 else:
-                    sg.popup_error(self.config.error_message)
+                    sg.popup_error(self.config.error_message, icon=self.__get_icon())
 
             # 保存 API 配置
             elif event.startswith("-SAVE_API-"):
@@ -412,17 +508,19 @@ class ConfigEditor:
                         model_index = int(values[f"-{api_name}_MODEL_INDEX-"])
                         key_index = int(values[f"-{api_name}_KEY_INDEX-"])
                         models = [
-                            m.strip() for m in values[f"-{api_name}_MODEL-"].split(",") if m.strip()
+                            m.strip()
+                            for m in re.split(r",|，", values[f"-{api_name}_MODEL-"])
+                            if m.strip()
                         ]
                         api_keys = [
                             k.strip()
-                            for k in values[f"-{api_name}_API_KEYS-"].split(",")
+                            for k in re.split(r",|，", values[f"-{api_name}_API_KEYS-"])
                             if k.strip()
                         ]
                         if not api_keys:
                             api_keys = [""]  # 确保至少有一个空密钥
                         if key_index >= len(api_keys):
-                            raise ValueError(f"{api_name} 密钥索引超出范围")
+                            raise ValueError(f"{api_name} API KEY 索引超出范围")
                         if model_index >= len(models):
                             raise ValueError(f"{api_name} 模型索引超出范围")
                         api_data = {
@@ -435,13 +533,22 @@ class ConfigEditor:
                         }
                         config["api"][api_name].update(api_data)
                     except ValueError as e:
-                        sg.popup_error(f"{api_name} 配置错误: {e}")
+                        sg.popup_error(
+                            f"{api_name} 配置错误: {e}",
+                            icon=self.__get_icon(),
+                        )
                         break
                 else:
                     if self.config.save_config(config):
-                        sg.popup("API 配置已保存")
+                        sg.popup(
+                            "API 配置已保存",
+                            icon=self.__get_icon(),
+                        )
                     else:
-                        sg.popup_error(self.config.error_message)
+                        sg.popup_error(
+                            self.config.error_message,
+                            icon=self.__get_icon(),
+                        )
 
             # 保存图像 API 配置
             elif event.startswith("-SAVE_IMG_API-"):
@@ -454,9 +561,15 @@ class ConfigEditor:
                     {"api_key": values["-PICSUM_API_KEY-"], "model": values["-PICSUM_MODEL-"]}
                 )
                 if self.config.save_config(config):
-                    sg.popup("图像 API 配置已保存")
+                    sg.popup(
+                        "图像 API 配置已保存",
+                        icon=self.__get_icon(),
+                    )
                 else:
-                    sg.popup_error(self.config.error_message)
+                    sg.popup_error(
+                        self.config.error_message,
+                        icon=self.__get_icon(),
+                    )
 
             # 保存其他配置
             elif event.startswith("-SAVE_OTHER-"):
@@ -464,9 +577,15 @@ class ConfigEditor:
                 config["use_template"] = values["-USE_TEMPLATE-"]
                 config["need_auditor"] = values["-NEED_AUDITOR-"]
                 if self.config.save_config(config):
-                    sg.popup("其他配置已保存")
+                    sg.popup(
+                        "其他配置已保存",
+                        icon=self.__get_icon(),
+                    )
                 else:
-                    sg.popup_error(self.config.error_message)
+                    sg.popup_error(
+                        self.config.error_message,
+                        icon=self.__get_icon(),
+                    )
 
             # 恢复默认配置 - 平台
             elif event.startswith("-RESET_PLATFORMS-"):
@@ -476,9 +595,15 @@ class ConfigEditor:
                     self.platform_count = len(config["platforms"])
                     # 清空并重建平台 tab
                     self.update_tab("-TAB_PLATFORM-", self.create_platforms_tab())
-                    sg.popup("已恢复默认平台配置")
+                    sg.popup(
+                        "已恢复默认平台配置",
+                        icon=self.__get_icon(),
+                    )
                 else:
-                    sg.popup_error(self.config.error_message)
+                    sg.popup_error(
+                        self.config.error_message,
+                        icon=self.__get_icon(),
+                    )
 
             # 恢复默认配置 - 微信
             elif event.startswith("-RESET_WECHAT-"):
@@ -490,9 +615,15 @@ class ConfigEditor:
                     self.wechat_count = len(config["wechat"]["credentials"])
                     # 清空并重建微信 tab
                     self.update_tab("-TAB_WECHAT-", self.create_wechat_tab())
-                    sg.popup("已恢复默认微信配置")
+                    sg.popup(
+                        "已恢复默认微信配置",
+                        icon=self.__get_icon(),
+                    )
                 else:
-                    sg.popup_error(self.config.error_message)
+                    sg.popup_error(
+                        self.config.error_message,
+                        icon=self.__get_icon(),
+                    )
 
             # 恢复默认配置 - API
             elif event.startswith("-RESET_API-"):
@@ -501,9 +632,16 @@ class ConfigEditor:
                 if self.config.save_config(config):
                     # 清空并重建 API tab
                     self.update_tab("-TAB_API-", self.create_api_tab())
-                    sg.popup("已恢复默认API配置")
+                    self.__default_select_api_tab()
+                    sg.popup(
+                        "已恢复默认API配置",
+                        icon=self.__get_icon(),
+                    )
                 else:
-                    sg.popup_error(self.config.error_message)
+                    sg.popup_error(
+                        self.config.error_message,
+                        icon=self.__get_icon(),
+                    )
 
             # 恢复默认配置 - 图像 API
             elif event.startswith("-RESET_IMG_API-"):
@@ -512,9 +650,15 @@ class ConfigEditor:
                 if self.config.save_config(config):
                     # 清空并重建图像 API tab
                     self.update_tab("-TAB_IMG_API-", self.create_img_api_tab())
-                    sg.popup("已恢复默认图像API配置")
+                    sg.popup(
+                        "已恢复默认图像API配置",
+                        icon=self.__get_icon(),
+                    )
                 else:
-                    sg.popup_error(self.config.error_message)
+                    sg.popup_error(
+                        self.config.error_message,
+                        icon=self.__get_icon(),
+                    )
 
             # 恢复默认配置 - 其他
             elif event.startswith("-RESET_OTHER-"):
@@ -524,9 +668,15 @@ class ConfigEditor:
                 if self.config.save_config(config):
                     # 清空并重建其他 tab
                     self.update_tab("-TAB_OTHER-", self.create_other_tab())
-                    sg.popup("已恢复默认其他配置")
+                    sg.popup(
+                        "已恢复默认其他配置",
+                        icon=self.__get_icon(),
+                    )
                 else:
-                    sg.popup_error(self.config.error_message)
+                    sg.popup_error(
+                        self.config.error_message,
+                        icon=self.__get_icon(),
+                    )
 
         self.window.close()
 
