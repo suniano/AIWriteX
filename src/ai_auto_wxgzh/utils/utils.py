@@ -9,6 +9,19 @@ import sys
 import shutil
 
 
+def copy_file(src_file, dest_file):
+    mkdir(os.path.dirname(dest_file))
+
+    # 存在不复制
+    if os.path.exists(dest_file):
+        return False
+
+    try:
+        shutil.copy2(src_file, dest_file)
+    except Exception as e:  # noqa 841
+        pass
+
+
 def mkdir(path, clean=False):
     if os.path.exists(path):
         if clean:
@@ -25,12 +38,28 @@ def get_is_release_ver():
         return False
 
 
-def get_res_path(file_name, basedir):
-
+def get_res_path(file_name, basedir=""):
     if get_is_release_ver():
         return os.path.join(sys._MEIPASS, file_name)
 
     return os.path.join(basedir, file_name)
+
+
+def get_current_dir(dir_name="", need_create_dir=True):
+    current_dir = ""
+    if get_is_release_ver():
+        exe_path = sys.executable
+        install_dir = os.path.dirname(exe_path)
+        current_dir = os.path.join(os.path.normpath(install_dir), dir_name)
+    else:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        current_dir = os.path.join(current_dir, "../../../", dir_name)
+
+    # 不为空时创建目录，为空说明只是获取根目录路径
+    if dir_name != "" and need_create_dir:
+        mkdir(current_dir)
+
+    return current_dir
 
 
 def get_random_platform(platforms):
@@ -59,7 +88,10 @@ def extract_modified_article(content):
     if match:
         return match.group(1).strip()
     else:
-        return content.strip()
+        # 分别去除开头和结尾的反引号（保留其他字符）
+        stripped = content.strip()
+        stripped = stripped.lstrip("`").rstrip("`")
+        return stripped.strip()  # 最后再去除可能的空白
 
 
 def extract_html(html, max_length=64):
@@ -89,17 +121,6 @@ def extract_html(html, max_length=64):
             digest = text
 
     return title, digest
-
-
-def replace_image_urls_with_array(html, new_urls):
-    soup = BeautifulSoup(html, "html.parser")
-    img_tags = soup.find_all("img")
-
-    for i, img_tag in enumerate(img_tags):
-        if i < len(new_urls):
-            img_tag["src"] = new_urls[i]
-
-    return str(soup)
 
 
 def get_latest_file_os(dir_path):
@@ -171,34 +192,6 @@ def download_and_save_image(image_url, local_image_folder):
     except Exception as e:
         print(f"处理图片失败：{image_url}，错误：{e}")
         return None
-
-
-def replace_image_urls_in_html(html_content, local_image_folder):
-    """
-    替换 HTML 中的图片链接为本地路径。
-
-    Args:
-        html_content (str): HTML 内容。
-        image_urls (list): 图片链接列表。
-        local_image_folder (str): 本地图片保存文件夹。
-
-    Returns:
-        str: 修改后的 HTML 内容。
-    """
-    image_urls = extract_image_urls(html_content)
-
-    for image_url in image_urls:
-        local_filename = download_and_save_image(image_url, local_image_folder)
-        if local_filename:
-            html_content = html_content.replace(image_url, local_filename)
-
-    return html_content
-
-
-def get_current_dir(dir_name=""):
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    # 拼接 image 目录的相对路径
-    return os.path.join(current_dir, "../../../", dir_name)
 
 
 def compress_html(content):

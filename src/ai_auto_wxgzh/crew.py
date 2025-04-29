@@ -2,14 +2,15 @@ from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 
 from src.ai_auto_wxgzh.tools.custom_tool import PublisherTool, ReadTemplateTool
+from src.ai_auto_wxgzh.utils import utils
 
 
 @CrewBase
 class AutowxGzh:
     """AutowxGzh crew"""
 
-    agents_config = "config/agents.yaml"
-    tasks_config = "config/tasks.yaml"
+    agents_config = utils.get_res_path("config/agents.yaml")
+    tasks_config = utils.get_res_path("config/tasks.yaml")
 
     def __init__(self, use_template=False, need_auditor=False):
         self.use_template = use_template  # 是否使用本地模板

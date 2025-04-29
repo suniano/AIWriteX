@@ -11,10 +11,13 @@ import time
 import queue
 import threading
 import os
+import glob
 import webbrowser
 from collections import deque
 
 import PySimpleGUI as sg
+import tkinter as tk
+
 from . import ConfigEditor
 from src.ai_auto_wxgzh.crew_main import autowx_gzh
 
@@ -36,6 +39,7 @@ class MainGUI(object):
         self._update_queue = comm.get_update_queue()
         self._log_buffer = deque(maxlen=100)
         self._ui_log_path = log.get_log_path("UI")
+        self._log_list = self.__get_logs()
         # 配置 CrewAI 日志处理器
         log.setup_logging("crewai", self._update_queue)
         # 终止信号和线程
@@ -52,17 +56,13 @@ class MainGUI(object):
         sg.theme("systemdefault")
 
         menu_list = [
-            ["配置", ["打开配置"]],
-            ["文件", ["日志", "文章"]],
+            ["配置", ["配置界面", "配置文件"]],
+            ["文件", ["日志", self._log_list, "文章"]],
             ["帮助", ["帮助", "关于", "官网"]],
         ]
 
         layout = [
-            [
-                sg.Menu(
-                    menu_list,
-                )
-            ],
+            [sg.Menu(menu_list, key="-MENU-")],
             [
                 sg.Image(
                     s=(640, 200),
@@ -105,7 +105,9 @@ class MainGUI(object):
             default_element_size=(12, 1),
             size=(640, 640),  # 展开650
             icon=self.__get_icon(),
+            finalize=True,
         )
+        self._menu = self._window["-MENU-"].TKMenu
 
     def __get_icon(self):
         return utils.get_res_path("UI\\icon.ico", os.path.dirname(__file__))
@@ -114,9 +116,77 @@ class MainGUI(object):
         ConfigEditor.gui_start()
 
     def __save_ui_log(self, log_entry):
+        # 如果日志不存在，则更新日志列表
+        need_update = False
+        if not os.path.exists(self._ui_log_path):
+            need_update = True
+
         with open(self._ui_log_path, "a", encoding="utf-8") as f:
             f.write(log_entry + "\n")
             f.flush()
+
+        if need_update:
+            self._log_list = self.__get_logs()
+
+        return need_update
+
+    def __get_logs(self, max_files=5):
+        try:
+            # 获取所有 .log 文件
+            log_files = glob.glob(os.path.join(utils.get_current_dir("logs"), "*.log"))
+            if not log_files:
+                return ["更多..."]
+
+            # 按修改时间排序（降序）
+            log_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+
+            # 提取文件名（不含路径），限制数量
+            log_filenames = [os.path.basename(f) for f in log_files[:max_files]]
+            if len(log_files) > max_files:
+                log_filenames.append("更多...")
+
+            return log_filenames
+        except Exception as e:  # noqa 841
+            return ["更多..."]
+
+    def __update_menu(self):
+        # 找到 "文件" 菜单的索引
+        file_menu_index = None
+        for i in range(self._menu.index(tk.END) + 1):
+            if self._menu.entrycget(i, "label") == "文件":
+                file_menu_index = i
+                break
+
+        if file_menu_index is None:
+            return
+
+        # 获取 "文件" 子菜单
+        file_menu = self._menu.entrycget(file_menu_index, "menu")
+        file_menu = self._menu.nametowidget(file_menu)
+
+        # 找到 "日志" 子菜单的索引
+        log_menu_index = None
+        for i in range(file_menu.index(tk.END) + 1):
+            if file_menu.entrycget(i, "label") == "日志":
+                log_menu_index = i
+                break
+
+        if log_menu_index is None:
+            return
+
+        # 获取 "日志" 子菜单
+        log_menu = file_menu.entrycget(log_menu_index, "menu")
+        log_menu = file_menu.nametowidget(log_menu)
+
+        # 清空 "日志" 子菜单
+        log_menu.delete(0, tk.END)
+
+        # 添加新的日志文件名
+        for log_item in self._log_list:
+            log_menu.add_command(
+                label=log_item,
+                command=lambda item=log_item: self._window.write_event_value(item, None),
+            )
 
     # 处理消息队列
     def process_queue(self):
@@ -138,7 +208,10 @@ class MainGUI(object):
                         f"[{time.strftime('%H:%M:%S')}] [{msg['type'].upper()}]: {msg['value']}"
                     )
                 self._log_buffer.append(log_entry)
-                self.__save_ui_log(log_entry)
+                if self.__save_ui_log(log_entry):
+                    # 需要更新日志列表
+                    self.__update_menu()
+
                 # 更新 Multiline，显示所有日志
                 self._window["-STATUS-"].update("\n".join(self._log_buffer), append=False)
                 if msg["type"] == "status" and (
@@ -174,8 +247,17 @@ class MainGUI(object):
                     else:
                         log.print_log("CrewAI 任务被终止（程序退出）", True)
                 break
-            elif event == "打开配置":
+            elif event == "配置界面":
                 self.__gui_config_start()
+            elif event == "配置文件":
+                try:
+                    os.system("start /B  notepad " + Config.get_instance().get_config_path())
+                except Exception as e:
+                    sg.popup(
+                        "无法打开配置文件 :( \n错误信息：" + str(e),
+                        title="系统提示",
+                        icon=self.__get_icon(),
+                    )
             elif event == "-START_BTN-":
                 config = Config.get_instance()
                 if not config.validate_config():
@@ -185,10 +267,9 @@ class MainGUI(object):
                         icon=self.__get_icon(),
                         non_blocking=True,
                     )
-                    log.print_log(config.error_message, True, "error")
                 elif not self._is_running:
                     sg.popup(
-                        "界面功能开发中，敬请期待 :)\n" "点击OK开始执行",
+                        "更多界面功能开发中，敬请期待 :)\n" "点击OK开始执行",
                         title="系统提示",
                         icon=self.__get_icon(),
                     )
@@ -249,37 +330,61 @@ class MainGUI(object):
             elif event == "-CLEAR_LOG-":
                 self._log_buffer.clear()
                 self._window["-STATUS-"].update("")
-            elif event == "日志":
-                logs_path = utils.get_res_path("logs", os.path.dirname(__file__))
-                if not utils.get_is_release_ver():
-                    logs_path = utils.get_res_path("..\\..\\..\\logs", os.path.dirname(__file__))
+            elif event in self._log_list:
+                if event == "更多...":
+                    logs_path = utils.get_current_dir("logs")
 
-                filename = sg.popup_get_file(
-                    "打开文件",
-                    default_path=logs_path,
-                    file_types=(("log文件", "*.log"),),
-                    no_window=True,
-                )
+                    filename = sg.popup_get_file(
+                        "打开文件",
+                        default_path=logs_path,
+                        file_types=(("log文件", "*.log"),),
+                        no_window=True,
+                    )
 
-                if len(filename) == 0:
-                    continue
+                    if len(filename) == 0:
+                        continue
 
-                try:
-                    os.system("start /B  notepad " + filename)
-                except Exception as e:
+                    try:
+                        os.system("start /B  notepad " + filename)
+                    except Exception as e:
+                        sg.popup(
+                            "无法打开日志文件 :( \n错误信息：" + str(e),
+                            title="系统提示",
+                            icon=self.__get_icon(),
+                        )
+                else:
+                    try:
+                        os.system(
+                            "start /B  notepad "
+                            + os.path.join(utils.get_current_dir("logs"), event)
+                        )
+                    except Exception as e:
+                        sg.popup(
+                            "无法打开日志文件 :( \n错误信息：" + str(e),
+                            title="系统提示",
+                            icon=self.__get_icon(),
+                        )
+
+            elif event == "文章":
+                # 生成的最终文章
+                final_article = os.path.join(utils.get_current_dir(), "final_article.html")
+                if not os.path.exists(final_article):
                     sg.popup(
-                        "无法打开日志文件 :( \n错误信息：" + str(e),
+                        "文章不存在，无法查看，请先执行并生成文章！",
                         title="系统提示",
                         icon=self.__get_icon(),
                     )
-            elif event == "文章":
-                # 生成的最终文章
-                sg.popup(
-                    "查看文章功能开发中...",
-                    title="系统提示",
-                    icon=self.__get_icon(),
-                )
-
+                else:
+                    try:
+                        # 转换为 file:// URL，确保中文路径正确处理
+                        html_url = f"file://{os.path.abspath(final_article).replace(os.sep, '/')}"
+                        webbrowser.open(html_url)
+                    except Exception as e:
+                        sg.popup(
+                            "无法打开文章 :( \n错误信息：" + str(e),
+                            title="系统提示",
+                            icon=self.__get_icon(),
+                        )
             # 处理队列更新（非阻塞）
             if self._is_running:
                 self.process_queue()

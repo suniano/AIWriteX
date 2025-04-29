@@ -22,10 +22,11 @@ class ReadTemplateTool(BaseTool):
 
     def _run(self, article_file: str) -> str:
         # 获取模板文件的绝对路径
-        template_dir_abs = os.path.join(
-            utils.get_current_dir(),
-            "knowledge/templates",
+        template_dir_abs = utils.get_res_path(
+            "templates",
+            os.path.join(utils.get_current_dir("knowledge", False)),
         )
+
         template_files_abs = glob.glob(os.path.join(template_dir_abs, "*.html"))
 
         if not template_files_abs:
@@ -96,7 +97,8 @@ class PublisherTool(BaseTool):
             img_api_model,
         )
         # 保存为 final_article.html
-        with open("final_article.html", "w", encoding="utf-8") as file:
+        final_article = os.path.join(utils.get_current_dir(), "final_article.html")
+        with open(final_article, "w", encoding="utf-8") as file:
             file.write(article)
 
         return result
@@ -115,6 +117,8 @@ class PublisherTool(BaseTool):
             title, digest = utils.extract_html(article)
         except Exception as e:
             return f"从文章中提取标题、摘要信息出错: {e}", article
+        if title is None:
+            return "无法提取文章标题，请检查文章是否成功生成？", article
 
         publisher = WeixinPublisher(
             appid, appsecret, author, img_api_type, img_api_key, img_api_model
@@ -124,6 +128,7 @@ class PublisherTool(BaseTool):
             "主题：" + title.split("|")[-1] + "，内容：" + digest,
             "900*384",
         )
+
         if image_url is None:
             print("生成图片出错，使用默认图片")
 

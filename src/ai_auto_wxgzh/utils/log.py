@@ -37,11 +37,13 @@ class QueueStreamHandler:
         if msg.strip():
             clean_msg = strip_ansi_codes(msg.rstrip())  # 移除尾部换行/空格
             self.queue.put({"type": "status", "value": f"PRINT: {clean_msg}"})
-            self.original_stdout.write(msg.rstrip() + "\n")  # 强制换行
-            self.original_stdout.flush()
+            if self.original_stdout is not None:  # 检查 stdout 是否可用
+                self.original_stdout.write(msg.rstrip() + "\n")  # 强制换行
+                self.original_stdout.flush()
 
     def flush(self):
-        self.original_stdout.flush()
+        if self.original_stdout is not None:  # 检查 stdout 是否可用
+            self.original_stdout.flush()
 
 
 def setup_logging(log_name, queue):
@@ -62,13 +64,9 @@ def setup_logging(log_name, queue):
 
 # 支持多种日志文件
 def get_log_path(log_name="log"):
-    log_path = utils.get_res_path("logs", os.path.dirname(__file__))
-    if not utils.get_is_release_ver():
-        logs_path = utils.get_res_path("..\\..\\..\\logs", os.path.dirname(__file__))
-    utils.mkdir(logs_path)
+    logs_path = utils.get_current_dir("logs")
     timestamp = datetime.now().strftime("%Y-%m-%d")
-    log_path = os.path.join(logs_path, f"{log_name}_{timestamp}.log")
-    return log_path
+    return os.path.join(logs_path, f"{log_name}_{timestamp}.log")
 
 
 def print_log(msg, ui_mode=False, msg_type="status"):

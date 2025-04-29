@@ -222,15 +222,15 @@ class Config:
             return api_keys_list
 
     def __get_config_path(self):
-        config_path = utils.get_res_path("", os.path.dirname(__file__))
-        # 这里因为在同一个目录下，所以路径其实是一样的，保留原来写法
+        # 配置文件不是资源，所以需要重新创建，也可以从资源先提取再创建，不能直接使用
+        config_path = "config/config.yaml"
         if not utils.get_is_release_ver():
-            config_path = utils.get_res_path(
-                "",
-                os.path.dirname(__file__),
-            )
-        utils.mkdir(config_path)
-        config_path = os.path.join(config_path, "config.yaml")
+            config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
+        else:
+            # 将资源文件复制到config目录下
+            res_config_path = utils.get_res_path("config/config.yaml")
+            utils.copy_file(res_config_path, config_path)
+
         return config_path
 
     def load_config(self):
@@ -320,3 +320,6 @@ class Config:
                 self.error_message = f"保存 config.yaml 失败: {e}"
                 comm.send_update("error", self.error_message)
                 return False
+
+    def get_config_path(self):
+        return self._config_path
