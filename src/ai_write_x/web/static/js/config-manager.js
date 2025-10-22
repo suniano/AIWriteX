@@ -1048,11 +1048,14 @@ class AIWriteXConfigManager {
                 }      
                 
                 // ✅ 大模型API配置(只读字段不更新)  
-                const apiMatch = id.match(/api-(\w+)-(key-name|api-base)/);    
-                if (apiMatch) {    
-                    // KEY名称和API BASE是只读的,不需要更新    
-                    return;    
-                }  
+                const apiMatch = id.match(/api-(\w+)-(key-name|api-base)/);
+                if (apiMatch) {
+                    const [, provider, field] = apiMatch;
+                    if (field === 'api-base' && provider === 'Custom') {
+                        await this.updateAPIProviderField(provider, 'api_base', e.target.value);
+                    }
+                    return;
+                }
                 
                 // ✅ 图片API配置      
                 const imgApiMatch = id.match(/img-api-(\w+)-(api-key|model)/);      
@@ -1412,21 +1415,47 @@ class AIWriteXConfigManager {
     }  
     
     // 获取平台描述  
-    getPlatformDescription(platformName) {  
-        const descriptions = {  
-            '微博': '社交媒体热搜话题',  
-            '抖音': '短视频平台热点',  
-            '小红书': '生活方式分享平台',  
-            '今日头条': '新闻资讯聚合',  
-            '百度热点': '搜索引擎热搜',  
-            '哔哩哔哩': '视频弹幕网站',  
-            '快手': '短视频社交平台',  
-            '虎扑': '体育社区论坛',  
-            '豆瓣小组': '文化兴趣社区',  
-            '澎湃新闻': '专业新闻媒体',  
-            '知乎热榜': '问答社区热榜'  
-        };  
-        return descriptions[platformName] || '热搜话题来源';  
+    getPlatformDescription(platformName) {
+        const descriptions = {
+            '微博': '社交媒体热搜话题',
+            '抖音': '短视频平台热点',
+            '小红书': '生活方式分享平台',
+            '今日头条': '新闻资讯聚合',
+            '百度热点': '搜索引擎热搜',
+            '哔哩哔哩': '视频弹幕网站',
+            '快手': '短视频社交平台',
+            '虎扑': '体育社区论坛',
+            '豆瓣小组': '文化兴趣社区',
+            '澎湃新闻': '专业新闻媒体',
+            '知乎热榜': '问答社区热榜'
+        };
+        return descriptions[platformName] || '热搜话题来源';
+    }
+
+    getAPIProviderDisplayName(providerKey) {
+        if (providerKey === 'SiliconFlow') {
+            return '硅基流动';
+        }
+        if (providerKey === 'Custom') {
+            return '自定义';
+        }
+        return providerKey;
+    }
+
+    getAIForgeProviderDisplayName(providerKey) {
+        const mapping = {
+            openrouter: 'OpenRouter',
+            grok: 'Grok',
+            qwen: 'Qwen',
+            gemini: 'Gemini',
+            ollama: 'Ollama',
+            deepseek: 'DeepSeek',
+            claude: 'Claude',
+            cohere: 'Cohere',
+            mistral: 'Mistral',
+            custom: '自定义'
+        };
+        return mapping[providerKey] || providerKey.charAt(0).toUpperCase() + providerKey.slice(1);
     }
 
     // 填充大模型API UI  
@@ -1437,21 +1466,21 @@ class AIWriteXConfigManager {
         const currentAPIType = this.config.api.api_type;  
         
         // 更新当前API类型指示器  
-        const indicator = document.getElementById('current-api-type');  
-        if (indicator) {  
-            indicator.textContent = currentAPIType === 'SiliconFlow' ? '硅基流动' : currentAPIType;  
-        }  
+        const indicator = document.getElementById('current-api-type');
+        if (indicator) {
+            indicator.textContent = this.getAPIProviderDisplayName(currentAPIType);
+        }
         
         // 清空现有内容  
         container.innerHTML = '';  
         
         const apiConfig = this.config.api;  
-        const providers = Object.keys(apiConfig)  
-            .filter(key => key !== 'api_type')  // 排除api_type字段  
-            .map(key => ({  
-                key: key,  
-                display: key === 'SiliconFlow' ? '硅基流动' : key  
-            }));  
+        const providers = Object.keys(apiConfig)
+            .filter(key => key !== 'api_type')  // 排除api_type字段
+            .map(key => ({
+                key: key,
+                display: this.getAPIProviderDisplayName(key)
+            }));
         
         // 生成提供商卡片  
         providers.forEach(provider => {  
@@ -1519,15 +1548,15 @@ class AIWriteXConfigManager {
         );  
         keyNameGroup.classList.add('form-group-half');  
         
-        const apiBaseGroup = this.createFormGroup(  
-            'API BASE',  
-            'text',  
-            `api-${providerKey}-api-base`,  
-            providerData.api_base || '',  
-            '',  
-            false,  
-            true  // 只读  
-        );  
+        const apiBaseGroup = this.createFormGroup(
+            'API BASE',
+            'text',
+            `api-${providerKey}-api-base`,
+            providerData.api_base || '',
+            '',
+            false,
+            providerKey !== 'Custom'  // 自定义API允许编辑
+        );
         apiBaseGroup.classList.add('form-group-half');  
         
         /*
@@ -1921,25 +1950,36 @@ class AIWriteXConfigManager {
     }    
     
     // 更新指定索引的模型    
-    async updateModelAtIndex(providerKey, index, value) {    
-        const models = [...(this.config.api[providerKey].model || [])];    
-        models[index] = value;    
-        
-        await this.updateConfig({    
-            api: {    
-                [providerKey]: {    
-                    ...this.config.api[providerKey],    
-                    model: models    
-                }    
-            }    
-        });    
-    }  
-    
-    // 更新API选择(当用户从下拉框选择时)    
-    async updateAPISelection(providerKey, type, index) {    
-        const fieldName = type === 'API KEY' ? 'key_index' : 'model_index';    
-        await this.updateConfig({    
-            api: {    
+    async updateModelAtIndex(providerKey, index, value) {
+        const models = [...(this.config.api[providerKey].model || [])];
+        models[index] = value;
+
+        await this.updateConfig({
+            api: {
+                [providerKey]: {
+                    ...this.config.api[providerKey],
+                    model: models
+                }
+            }
+        });
+    }
+
+    async updateAPIProviderField(providerKey, field, value) {
+        await this.updateConfig({
+            api: {
+                [providerKey]: {
+                    ...this.config.api[providerKey],
+                    [field]: value
+                }
+            }
+        });
+    }
+
+    // 更新API选择(当用户从下拉框选择时)
+    async updateAPISelection(providerKey, type, index) {
+        const fieldName = type === 'API KEY' ? 'key_index' : 'model_index';
+        await this.updateConfig({
+            api: {
                 [providerKey]: {    
                     ...this.config.api[providerKey],    
                     [fieldName]: index    
@@ -1960,10 +2000,10 @@ class AIWriteXConfigManager {
         // 刷新UI以更新激活状态    
         this.populateAPIUI();    
         
-        window.app?.showNotification(    
-            `已切换到 ${providerKey === 'SiliconFlow' ? '硅基流动' : providerKey}`,    
-            'success'    
-        );    
+        window.app?.showNotification(
+            `已切换到 ${this.getAPIProviderDisplayName(providerKey)}`,
+            'success'
+        );
     }  
     
     // 保存API配置    
@@ -2534,10 +2574,10 @@ class AIWriteXConfigManager {
         container.innerHTML = '';  
         
         // 获取所有LLM提供商  
-        const providers = Object.keys(aiforgeConfig.llm).map(key => ({  
-            key: key,  
-            display: key.charAt(0).toUpperCase() + key.slice(1)  
-        }));  
+        const providers = Object.keys(aiforgeConfig.llm).map(key => ({
+            key: key,
+            display: this.getAIForgeProviderDisplayName(key)
+        }));
         
         // 为每个提供商生成卡片  
         providers.forEach(provider => {  
@@ -2648,16 +2688,24 @@ class AIWriteXConfigManager {
         row2.className = 'form-row';  
         
         // Base URL  
-        const baseUrlGroup = this.createFormGroup(  
-            'Base URL',  
-            'text',  
-            `aiforge-${providerKey}-base-url`,  
-            providerData.base_url || '',  
-            'API的基础地址',  
+        const isCustomProvider = providerKey === 'custom';
+        const baseUrlGroup = this.createFormGroup(
+            'Base URL',
+            'text',
+            `aiforge-${providerKey}-base-url`,
+            providerData.base_url || '',
+            isCustomProvider ? 'OpenAI兼容格式的基础地址' : 'API的基础地址',
             true,
-            true
-        );  
-        baseUrlGroup.classList.add('form-group-third');  
+            !isCustomProvider
+        );
+        baseUrlGroup.classList.add('form-group-third');
+        if (!isCustomProvider) {
+            const baseUrlInput = baseUrlGroup.querySelector('input');
+            if (baseUrlInput) {
+                baseUrlInput.style.userSelect = 'none';
+                baseUrlInput.style.cursor = 'not-allowed';
+            }
+        }
         
         // 超时时间  
         const timeoutGroup = this.createFormGroup(  
@@ -2706,10 +2754,10 @@ class AIWriteXConfigManager {
         // 刷新UI  
         this.populateAIForgeLLMUI();  
         
-        window.app?.showNotification(  
-            `已切换到${providerKey}`,  
-            'success'  
-        );  
+        window.app?.showNotification(
+            `已切换到${this.getAIForgeProviderDisplayName(providerKey)}`,
+            'success'
+        );
     }
 
     // 更新AIForge LLM提供商字段  

@@ -30,20 +30,45 @@ class AgentFactory:
 
         # 如果没有指定特殊配置，使用全局配置
         if not llm_config:
-            cache_key = f"{config.api_type}_{config.api_model}"
+            cache_key = f"{config.api_type}_{config.api_model}_{config.api_apibase}"
             if cache_key not in self._llm_cache:
                 if config.api_key:
-                    self._llm_cache[cache_key] = LLM(
-                        model=config.api_model, api_key=config.api_key, max_tokens=8192
-                    )
+                    llm_kwargs: Dict[str, Any] = {
+                        "model": config.api_model,
+                        "api_key": config.api_key,
+                        "max_tokens": 8192,
+                    }
+                    api_base = config.api_apibase
+                    if api_base:
+                        llm_kwargs["base_url"] = api_base
+                        llm_kwargs["api_base"] = api_base
+
+                    self._llm_cache[cache_key] = LLM(**llm_kwargs)
                 else:
                     return None
             return self._llm_cache.get(cache_key)
 
         # 使用自定义LLM配置
-        cache_key = f"{llm_config.get('model', 'default')}_{llm_config.get('api_key', 'default')}"
+        llm_params = {**llm_config}
+
+        if not llm_params.get("api_key"):
+            llm_params["api_key"] = config.api_key
+
+        base_url = llm_params.get("base_url") or llm_params.get("api_base")
+        if not base_url:
+            base_url = config.api_apibase
+
+        if base_url:
+            llm_params.setdefault("base_url", base_url)
+            llm_params.setdefault("api_base", base_url)
+
+        cache_key = (
+            f"{llm_params.get('model', 'default')}"
+            f"_{llm_params.get('api_key', 'default')}"
+            f"_{llm_params.get('base_url', '')}"
+        )
         if cache_key not in self._llm_cache:
-            self._llm_cache[cache_key] = LLM(**llm_config)
+            self._llm_cache[cache_key] = LLM(**llm_params)
         return self._llm_cache[cache_key]
 
     def create_agent(self, config: AgentConfig, custom_llm: LLM | None = None) -> Agent:

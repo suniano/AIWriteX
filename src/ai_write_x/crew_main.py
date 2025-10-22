@@ -209,9 +209,33 @@ def ai_write_x_main(config_data=None):
             pass
 
     # 设置环境变量
-    os.environ[config.api_key_name] = config.api_key
-    os.environ["MODEL"] = config.api_model
-    os.environ["OPENAI_API_BASE"] = config.api_apibase
+    try:
+        api_key = config.api_key
+    except Exception:
+        api_key = ""
+
+    if api_key:
+        os.environ[config.api_key_name] = api_key
+        os.environ["OPENAI_API_KEY"] = api_key
+
+    model_name = ""
+    try:
+        model_name = config.api_model
+    except Exception:
+        model_name = ""
+
+    if model_name:
+        os.environ["MODEL"] = model_name
+
+    api_base = ""
+    try:
+        api_base = config.api_apibase or ""
+    except Exception:
+        api_base = ""
+
+    if api_base:
+        os.environ["OPENAI_API_BASE"] = api_base
+        os.environ["OPENAI_BASE_URL"] = api_base
 
     # 直接启动内容生成，不处理发布
     return ai_write_x_run(config_data=config_data)
