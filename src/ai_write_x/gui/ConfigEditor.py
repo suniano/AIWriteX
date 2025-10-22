@@ -218,6 +218,7 @@ class ConfigEditor:
 
     def create_api_sub_tab(self, api_name, api_data):
         """创建 API 子 TAB 布局"""
+        is_custom_api = api_name == "Custom"
         layout = [
             [sg.Text(f"{api_name.upper()} 配置")],
             [
@@ -226,7 +227,11 @@ class ConfigEditor:
             ],
             [
                 sg.Text("API BASE:", size=(15, 1)),
-                sg.InputText(api_data["api_base"], key=f"-{api_name}_API_BASE-", disabled=True),
+                sg.InputText(
+                    api_data["api_base"],
+                    key=f"-{api_name}_API_BASE-",
+                    disabled=not is_custom_api,
+                ),
             ],
             [
                 sg.Text("KEY索引*:", size=(15, 1)),
@@ -265,11 +270,7 @@ class ConfigEditor:
         api_data = self.config.get_config()["api"]
         api_type = api_data["api_type"]
 
-        # 转换为显示名称
-        if api_type == "SiliconFlow":
-            target_tab_text = "硅基流动"
-        else:
-            target_tab_text = api_type
+        target_tab_text = self._get_api_display_name(api_type)
 
         tab_group = self.window["-API_TAB_GROUP-"]
         for tab in tab_group.Widget.tabs():  # type: ignore
@@ -283,10 +284,15 @@ class ConfigEditor:
         """创建 API TAB 布局"""
         api_data = self.config.get_config()["api"]
         current_api_type = api_data["api_type"]
-        if current_api_type == "SiliconFlow":
-            display_api_type = "硅基流动"
-        else:
-            display_api_type = current_api_type
+        display_api_type = self._get_api_display_name(current_api_type)
+
+        api_tabs = [
+            sg.Tab(
+                self._get_api_display_name(api_name),
+                self.create_api_sub_tab(api_name, api_data[api_name]),
+            )
+            for api_name in self.config.api_list
+        ]
 
         layout = [
             [
@@ -300,34 +306,7 @@ class ConfigEditor:
                 ),
             ],
             [
-                sg.TabGroup(
-                    [
-                        [sg.Tab("Grok", self.create_api_sub_tab("Grok", api_data["Grok"]))],
-                        [sg.Tab("Qwen", self.create_api_sub_tab("Qwen", api_data["Qwen"]))],
-                        [sg.Tab("Gemini", self.create_api_sub_tab("Gemini", api_data["Gemini"]))],
-                        [
-                            sg.Tab(
-                                "OpenRouter",
-                                self.create_api_sub_tab("OpenRouter", api_data["OpenRouter"]),
-                            )
-                        ],
-                        [sg.Tab("Ollama", self.create_api_sub_tab("Ollama", api_data["Ollama"]))],
-                        [
-                            sg.Tab(
-                                "Deepseek",
-                                self.create_api_sub_tab("Deepseek", api_data["Deepseek"]),
-                            )
-                        ],
-                        [
-                            sg.Tab(
-                                "硅基流动",
-                                self.create_api_sub_tab("SiliconFlow", api_data["SiliconFlow"]),
-                            )
-                        ],
-                    ],
-                    key="-API_TAB_GROUP-",
-                    enable_events=True,
-                )
+                sg.TabGroup([api_tabs], key="-API_TAB_GROUP-", enable_events=True)
             ],
             [
                 sg.Button("保存配置", key="-SAVE_API-"),
@@ -1317,6 +1296,20 @@ class ConfigEditor:
         }
         return display_mapping.get(display_name, "wechat")
 
+    def _get_api_display_name(self, api_name: str) -> str:
+        if api_name == "SiliconFlow":
+            return "硅基流动"
+        if api_name == "Custom":
+            return "自定义"
+        return api_name
+
+    def _resolve_api_type(self, display_name: str) -> str:
+        if display_name == "硅基流动":
+            return "SiliconFlow"
+        if display_name == "自定义":
+            return "Custom"
+        return display_name
+
     def _collect_selected_dimensions(self, values, dimension_options):
         """
         收集用户选择的维度
@@ -1658,9 +1651,7 @@ class ConfigEditor:
             # 保存 API 配置
             elif event.startswith("-SAVE_API-"):
                 config = self.config.get_config().copy()
-                api_type = values["-API_TYPE-"]
-                if api_type == "硅基流动":
-                    api_type = "SiliconFlow"
+                api_type = self._resolve_api_type(values["-API_TYPE-"])
 
                 config["api"]["api_type"] = api_type
                 for api_name in self.config.api_list:
@@ -1721,11 +1712,7 @@ class ConfigEditor:
                     selected_tab_index = tab_group.Widget.index("current")  # type: ignore
                     selected_tab_text = tab_group.Widget.tab(selected_tab_index, "text")  # type: ignore # noqa 501
 
-                    # 转换 tab 文本为显示名称（保持一致性）
-                    if selected_tab_text == "硅基流动":
-                        display_api_type = "硅基流动"
-                    else:
-                        display_api_type = selected_tab_text
+                    display_api_type = selected_tab_text
 
                     # 更新 API TYPE 下拉框，避免触发循环事件
                     current_value = self.window["-API_TYPE-"].get()

@@ -164,6 +164,14 @@ class Config:
                     ],
                     "api_base": "https://api.siliconflow.cn/v1",
                 },
+                "Custom": {
+                    "key": "CUSTOM_API_KEY",
+                    "key_index": 0,
+                    "api_key": [],
+                    "model_index": 0,
+                    "model": ["gpt-4o-mini"],
+                    "api_base": "https://api.openai.com/v1",
+                },
             },
             "img_api": {
                 "api_type": "picsum",
@@ -1613,6 +1621,8 @@ class Config:
             for api_type in api_keys_list:
                 if api_type == "SiliconFlow":
                     display_list.append("硅基流动")
+                elif api_type == "Custom":
+                    display_list.append("自定义")
                 else:
                     display_list.append(api_type)
 
