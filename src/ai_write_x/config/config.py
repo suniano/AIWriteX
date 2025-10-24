@@ -1,4 +1,5 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+import copy
 import os
 import yaml
 import threading
@@ -177,6 +178,17 @@ class Config:
                 "api_type": "picsum",
                 "ali": {"api_key": "", "model": "wanx2.0-t2i-turbo"},
                 "picsum": {"api_key": "", "model": ""},
+                "sd_exacg": {
+                    "api_key": "",
+                    "endpoint": "https://sd.exacg.cc/api/v1/generate_image",
+                    "model_index": 0,
+                    "width": 512,
+                    "height": 512,
+                    "steps": 20,
+                    "cfg": 7.0,
+                    "negative_prompt": "",
+                    "seed": -1,
+                },
             },
             "use_template": True,
             "template_category": "",
@@ -1480,14 +1492,22 @@ class Config:
         with self._lock:
             if not self.config:
                 raise ValueError("配置未加载")
-            return self.config["img_api"][self.config["img_api"]["api_type"]]["api_key"]
+            return self.get_img_api_settings().get("api_key", "")
 
     @property
     def img_api_model(self):
         with self._lock:
             if not self.config:
                 raise ValueError("配置未加载")
-            return self.config["img_api"][self.config["img_api"]["api_type"]]["model"]
+            return self.get_img_api_settings().get("model", "")
+
+    def get_img_api_settings(self, provider: Optional[str] = None) -> Dict[str, Any]:
+        with self._lock:
+            if not self.config:
+                raise ValueError("配置未加载")
+            provider = provider or self.config["img_api"]["api_type"]
+            provider_config = self.config["img_api"].get(provider, {})
+            return copy.deepcopy(provider_config)
 
     @property
     def use_template(self):
@@ -1790,12 +1810,13 @@ class Config:
                 return False
 
             if self.img_api_type != "picsum":
-                if self.img_api_key == "":
+                provider_settings = self.get_img_api_settings()
+                if not provider_settings.get("api_key"):
                     self.error_message = (
                         f"未配置图片生成模型的API KEY，请打开配置填写{self.img_api_type}的api_key"
                     )
                     return False
-                elif self.img_api_model == "":
+                if self.img_api_type == "ali" and not provider_settings.get("model"):
                     self.error_message = (
                         f"未配置图片生成的模型，请打开配置填写{self.img_api_type}的model"
                     )

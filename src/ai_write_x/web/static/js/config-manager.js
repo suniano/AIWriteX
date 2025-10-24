@@ -477,26 +477,33 @@ class AIWriteXConfigManager {
 
         // 保存图片API配置  
         const saveImgAPIConfigBtn = document.getElementById('save-img-api-config');  
-        if (saveImgAPIConfigBtn) {  
-            saveImgAPIConfigBtn.addEventListener('click', async () => {  
-                const success = await this.saveConfig();  
-                
-                if (success) {  
-                    saveImgAPIConfigBtn.classList.remove('has-changes');  
-                    saveImgAPIConfigBtn.innerHTML = '<i class="icon-save"></i> 保存设置';  
-                }  
-                
-                window.app?.showNotification(  
-                    success ? '图片API配置已保存' : '保存图片API配置失败',  
-                    success ? 'success' : 'error'  
-                );  
-            });  
-        } 
-        
-        // 恢复默认图片API配置  
-        const resetImgAPIConfigBtn = document.getElementById('reset-img-api-config');  
-        if (resetImgAPIConfigBtn) {  
-            resetImgAPIConfigBtn.addEventListener('click', async () => {  
+        if (saveImgAPIConfigBtn) {
+            saveImgAPIConfigBtn.addEventListener('click', async () => {
+                const success = await this.saveConfig();
+
+                if (success) {
+                    saveImgAPIConfigBtn.classList.remove('has-changes');
+                    saveImgAPIConfigBtn.innerHTML = '<i class="icon-save"></i> 保存设置';
+                }
+
+                window.app?.showNotification(
+                    success ? '图片API配置已保存' : '保存图片API配置失败',
+                    success ? 'success' : 'error'
+                );
+            });
+        }
+
+        const testImgAPIConfigBtn = document.getElementById('test-img-api-config');
+        if (testImgAPIConfigBtn) {
+            testImgAPIConfigBtn.addEventListener('click', async () => {
+                await this.testImgAPIConfig();
+            });
+        }
+
+        // 恢复默认图片API配置
+        const resetImgAPIConfigBtn = document.getElementById('reset-img-api-config');
+        if (resetImgAPIConfigBtn) {
+            resetImgAPIConfigBtn.addEventListener('click', async () => {
                 await this.resetImgAPIConfig();  
             });  
         }
@@ -1058,12 +1065,13 @@ class AIWriteXConfigManager {
                 }
                 
                 // ✅ 图片API配置      
-                const imgApiMatch = id.match(/img-api-(\w+)-(api-key|model)/);      
-                if (imgApiMatch) {      
-                    const [, provider, field] = imgApiMatch;      
-                    await this.updateImgAPIProviderField(provider, field, e.target.value);      
-                    return;      
-                } 
+                const imgApiMatch = id.match(/img-api-([\w]+)-([\w-]+)/);
+                if (imgApiMatch) {
+                    const [, provider, field] = imgApiMatch;
+                    const normalizedField = field.replace(/-/g, '_');
+                    await this.updateImgAPIProviderField(provider, normalizedField, e.target.value);
+                    return;
+                }
 
                 // ✅ AIForge LLM配置  
                 const aiforgeMatch = id.match(/aiforge-(\w+)-(type|model|api-key|base-url|timeout|max-tokens)/);  
@@ -2269,15 +2277,16 @@ class AIWriteXConfigManager {
         // 清空现有内容  
         container.innerHTML = '';  
         
-        // 定义提供商列表(固定两个:picsum和ali)  
-        const providers = [  
-            { key: 'picsum', display: 'Picsum(随机)' },  
-            { key: 'ali', display: '阿里' }  
-        ];  
+        // 定义提供商列表
+        const providers = [
+            { key: 'picsum', display: 'Picsum(随机)' },
+            { key: 'ali', display: '阿里通义万象' },
+            { key: 'sd_exacg', display: 'SD·ExACG' }
+        ];
         
         // 生成提供商卡片  
         providers.forEach(provider => {  
-            const providerData = this.config.img_api[provider.key];  
+            const providerData = this.config.img_api[provider.key] || {};
             if (providerData) {  
                 const card = this.createImgAPIProviderCard(  
                     provider.key,   
@@ -2327,131 +2336,306 @@ class AIWriteXConfigManager {
         header.appendChild(titleGroup);  
         header.appendChild(toggleBtn);  
         
-        // 表单内容  
-        const form = document.createElement('div');  
-        form.className = 'provider-form';  
-        
-        // API KEY字段  
-        const apiKeyGroup = this.createFormGroup(  
-            'API KEY',  
-            'text',  
-            `img-api-${providerKey}-api-key`,  
-            providerData.api_key || '',  
-            providerKey === 'picsum'?"随机图片无需API KEY" : "请输入API KEY",  
-            false  
-        );  
-        apiKeyGroup.classList.add('form-group-half');  
-        
-        // 模型字段  
-        const modelGroup = this.createFormGroup(  
-            '模型',  
-            'text',  
-            `img-api-${providerKey}-model`,  
-            providerData.model || '',  
-            providerKey === 'picsum'?"随机图片无需模型" : "请输入模型名称",   
-            false  
-        );  
-        modelGroup.classList.add('form-group-half');  
-        
-        if (providerKey === 'picsum') {  
-            const inputs = [  
-                apiKeyGroup.querySelector('input'),  
-                modelGroup.querySelector('input')  
-            ];  
-            inputs.forEach(input => {  
-                if (input) {  
-                    input.disabled = true;  
-                    input.style.userSelect = 'none';  
-                    input.style.cursor = 'not-allowed';  
-                }  
-            });  
+        // 表单内容
+        const form = document.createElement('div');
+        form.className = 'provider-form';
+
+        if (providerKey === 'sd_exacg') {
+            const apiKeyGroup = this.createFormGroup(
+                'API KEY',
+                'text',
+                `img-api-${providerKey}-api-key`,
+                providerData.api_key || '',
+                '请输入 API KEY',
+                false
+            );
+            const endpointGroup = this.createFormGroup(
+                '接口地址',
+                'text',
+                `img-api-${providerKey}-endpoint`,
+                providerData.endpoint || 'https://sd.exacg.cc/api/v1/generate_image',
+                'https://sd.exacg.cc/api/v1/generate_image',
+                false
+            );
+
+            apiKeyGroup.classList.add('form-group-half');
+            endpointGroup.classList.add('form-group-half');
+
+            const keyRow = document.createElement('div');
+            keyRow.className = 'form-row';
+            keyRow.appendChild(apiKeyGroup);
+            keyRow.appendChild(endpointGroup);
+            form.appendChild(keyRow);
+
+            const modelIndexGroup = this.createFormGroup(
+                '模型索引',
+                'number',
+                `img-api-${providerKey}-model-index`,
+                providerData.model_index ?? 0,
+                '可选模型索引 0-16',
+                false
+            );
+            const seedGroup = this.createFormGroup(
+                '随机种子',
+                'number',
+                `img-api-${providerKey}-seed`,
+                providerData.seed ?? -1,
+                '-1 表示随机',
+                false
+            );
+            modelIndexGroup.classList.add('form-group-half');
+            seedGroup.classList.add('form-group-half');
+            const modelRow = document.createElement('div');
+            modelRow.className = 'form-row';
+            modelRow.appendChild(modelIndexGroup);
+            modelRow.appendChild(seedGroup);
+            form.appendChild(modelRow);
+
+            const widthGroup = this.createFormGroup(
+                '宽度',
+                'number',
+                `img-api-${providerKey}-width`,
+                providerData.width ?? 512,
+                '64 - 2048',
+                false
+            );
+            const heightGroup = this.createFormGroup(
+                '高度',
+                'number',
+                `img-api-${providerKey}-height`,
+                providerData.height ?? 512,
+                '64 - 2048',
+                false
+            );
+            widthGroup.classList.add('form-group-half');
+            heightGroup.classList.add('form-group-half');
+            const sizeRow = document.createElement('div');
+            sizeRow.className = 'form-row';
+            sizeRow.appendChild(widthGroup);
+            sizeRow.appendChild(heightGroup);
+            form.appendChild(sizeRow);
+
+            const stepsGroup = this.createFormGroup(
+                '步数',
+                'number',
+                `img-api-${providerKey}-steps`,
+                providerData.steps ?? 20,
+                '1 - 50',
+                false
+            );
+            const cfgGroup = this.createFormGroup(
+                'CFG',
+                'number',
+                `img-api-${providerKey}-cfg`,
+                providerData.cfg ?? 7.0,
+                '1.0 - 10.0',
+                false
+            );
+            stepsGroup.classList.add('form-group-half');
+            cfgGroup.classList.add('form-group-half');
+            const qualityRow = document.createElement('div');
+            qualityRow.className = 'form-row';
+            qualityRow.appendChild(stepsGroup);
+            qualityRow.appendChild(cfgGroup);
+            form.appendChild(qualityRow);
+
+            const negativeGroup = this.createFormGroup(
+                '负面提示词',
+                'text',
+                `img-api-${providerKey}-negative-prompt`,
+                providerData.negative_prompt || '',
+                '避免出现的内容，可留空',
+                false
+            );
+            form.appendChild(negativeGroup);
+
+            const modelIndexInput = modelIndexGroup.querySelector('input');
+            if (modelIndexInput) {
+                modelIndexInput.min = 0;
+                modelIndexInput.step = 1;
+            }
+            const seedInput = seedGroup.querySelector('input');
+            if (seedInput) {
+                seedInput.min = -1;
+                seedInput.step = 1;
+            }
+            const widthInput = widthGroup.querySelector('input');
+            if (widthInput) {
+                widthInput.min = 64;
+                widthInput.max = 2048;
+                widthInput.step = 1;
+            }
+            const heightInput = heightGroup.querySelector('input');
+            if (heightInput) {
+                heightInput.min = 64;
+                heightInput.max = 2048;
+                heightInput.step = 1;
+            }
+            const stepsInput = stepsGroup.querySelector('input');
+            if (stepsInput) {
+                stepsInput.min = 1;
+                stepsInput.max = 50;
+                stepsInput.step = 1;
+            }
+            const cfgInput = cfgGroup.querySelector('input');
+            if (cfgInput) {
+                cfgInput.min = 1;
+                cfgInput.max = 10;
+                cfgInput.step = 0.1;
+            }
+        } else {
+            const apiKeyGroup = this.createFormGroup(
+                'API KEY',
+                'text',
+                `img-api-${providerKey}-api-key`,
+                providerData.api_key || '',
+                providerKey === 'picsum' ? '随机图片无需API KEY' : '请输入API KEY',
+                false
+            );
+            const modelGroup = this.createFormGroup(
+                '模型',
+                'text',
+                `img-api-${providerKey}-model`,
+                providerData.model || '',
+                providerKey === 'picsum' ? '随机图片无需模型' : '请输入模型名称',
+                false
+            );
+
+            apiKeyGroup.classList.add('form-group-half');
+            modelGroup.classList.add('form-group-half');
+
+            if (providerKey === 'picsum') {
+                const inputs = [
+                    apiKeyGroup.querySelector('input'),
+                    modelGroup.querySelector('input')
+                ];
+                inputs.forEach(input => {
+                    if (input) {
+                        input.disabled = true;
+                        input.style.userSelect = 'none';
+                        input.style.cursor = 'not-allowed';
+                    }
+                });
+            }
+
+            const row = document.createElement('div');
+            row.className = 'form-row';
+            row.appendChild(apiKeyGroup);
+            row.appendChild(modelGroup);
+            form.appendChild(row);
         }
-        
-        const row = document.createElement('div');  
-        row.className = 'form-row';  
-        row.appendChild(apiKeyGroup);  
-        row.appendChild(modelGroup);  
-        
-        form.appendChild(row);  
-        
-        // 组装卡片  
-        card.appendChild(header);  
-        card.appendChild(form);  
-        
+
+        // 组装卡片
+        card.appendChild(header);
+        card.appendChild(form);
+
         return card;  
     }
     
-    // 切换当前图片API提供商  
-    async setCurrentImgAPIProvider(providerKey) {  
-        await this.updateConfig({  
-            img_api: {  
-                ...this.config.img_api,  
-                api_type: providerKey  
-            }  
-        });  
-        
-        // 刷新UI  
-        this.populateImgAPIUI();  
-        
-        window.app?.showNotification(  
-            `已切换到${providerKey === 'picsum' ? 'Picsum(随机)' : '阿里'}`,  
-            'success'  
-        );  
-    }  
-    
-    // 切换当前图片API提供商  
-    async setCurrentImgAPIProvider(providerKey) {  
-        await this.updateConfig({  
-            img_api: {  
-                ...this.config.img_api,  
-                api_type: providerKey  
-            }  
-        });  
-        
-        // 刷新UI  
-        this.populateImgAPIUI();  
-        
-        window.app?.showNotification(  
-            `已切换到${providerKey === 'picsum' ? 'Picsum(随机)' : '阿里'}`,  
-            'success'  
-        );  
-    }  
-    
-    // 更新图片API提供商字段  
-    async updateImgAPIProviderField(providerKey, field, value) {  
-        await this.updateConfig({  
-            img_api: {  
-                ...this.config.img_api,  
-                [providerKey]: {  
-                    ...this.config.img_api[providerKey],  
-                    [field]: value  
-                }  
-            }  
-        });  
+    // 切换当前图片API提供商
+    async setCurrentImgAPIProvider(providerKey) {
+        await this.updateConfig({
+            img_api: {
+                ...this.config.img_api,
+                api_type: providerKey
+            }
+        });
+
+        // 刷新UI
+        this.populateImgAPIUI();
+
+        const providerLabels = {
+            picsum: 'Picsum(随机)',
+            ali: '阿里通义万象',
+            sd_exacg: 'SD·ExACG'
+        };
+
+        window.app?.showNotification(
+            `已切换到${providerLabels[providerKey] || providerKey}`,
+            'success'
+        );
     }
-    // 保存图片API配置  
-    async saveImgAPIConfig() {  
-        // 收集所有提供商的配置  
-        const imgApiConfig = {  
-            api_type: this.config.img_api.api_type,  
-            picsum: {  
-                api_key: document.getElementById('img-api-picsum-api-key')?.value || '',  
-                model: document.getElementById('img-api-picsum-model')?.value || ''  
-            },  
-            ali: {  
-                api_key: document.getElementById('img-api-ali-api-key')?.value || '',  
-                model: document.getElementById('img-api-ali-model')?.value || ''  
-            }  
-        };  
-        
-        // 验证:如果选择阿里,必须填写API KEY  
-        if (imgApiConfig.api_type === 'ali' && !imgApiConfig.ali.api_key.trim()) {  
-            window.app?.showNotification('阿里API需要配置API KEY', 'error');  
-            return;  
-        }  
-        
-        // 更新配置  
-        await this.updateConfig({ img_api: imgApiConfig });  
+    
+    // 更新图片API提供商字段
+    async updateImgAPIProviderField(providerKey, field, value) {
+        const numericFields = new Set(['width', 'height', 'steps', 'model_index', 'seed']);
+        const floatFields = new Set(['cfg']);
+        let parsedValue = value;
+
+        if (numericFields.has(field)) {
+            if (value === '') {
+                parsedValue = '';
+            } else {
+                const numeric = Number(value);
+                parsedValue = Number.isFinite(numeric) ? Math.trunc(numeric) : this.config.img_api?.[providerKey]?.[field];
+            }
+        } else if (floatFields.has(field)) {
+            if (value === '') {
+                parsedValue = '';
+            } else {
+                const numeric = Number(value);
+                parsedValue = Number.isFinite(numeric) ? numeric : this.config.img_api?.[providerKey]?.[field];
+            }
+        }
+
+        await this.updateConfig({
+            img_api: {
+                ...this.config.img_api,
+                [providerKey]: {
+                    ...this.config.img_api[providerKey],
+                    [field]: parsedValue
+                }
+            }
+        });
+    }
+    // 保存图片API配置
+    async saveImgAPIConfig() {
+        // 收集所有提供商的配置
+        const readNumberInput = (id, defaultValue) => {
+            const element = document.getElementById(id);
+            if (!element) return defaultValue;
+            const raw = element.value;
+            if (raw === '') return defaultValue;
+            const numeric = Number(raw);
+            return Number.isFinite(numeric) ? numeric : defaultValue;
+        };
+
+        const imgApiConfig = {
+            api_type: this.config.img_api.api_type,
+            picsum: {
+                api_key: document.getElementById('img-api-picsum-api-key')?.value || '',
+                model: document.getElementById('img-api-picsum-model')?.value || ''
+            },
+            ali: {
+                api_key: document.getElementById('img-api-ali-api-key')?.value || '',
+                model: document.getElementById('img-api-ali-model')?.value || ''
+            },
+            sd_exacg: {
+                api_key: document.getElementById('img-api-sd_exacg-api-key')?.value || '',
+                endpoint: document.getElementById('img-api-sd_exacg-endpoint')?.value || 'https://sd.exacg.cc/api/v1/generate_image',
+                model_index: readNumberInput('img-api-sd_exacg-model-index', 0),
+                seed: readNumberInput('img-api-sd_exacg-seed', -1),
+                width: readNumberInput('img-api-sd_exacg-width', 512),
+                height: readNumberInput('img-api-sd_exacg-height', 512),
+                steps: readNumberInput('img-api-sd_exacg-steps', 20),
+                cfg: readNumberInput('img-api-sd_exacg-cfg', 7.0),
+                negative_prompt: document.getElementById('img-api-sd_exacg-negative-prompt')?.value || ''
+            }
+        };
+
+        // 验证:如果选择阿里,必须填写API KEY
+        if (imgApiConfig.api_type === 'ali' && !imgApiConfig.ali.api_key.trim()) {
+            window.app?.showNotification('阿里API需要配置API KEY', 'error');
+            return;
+        }
+
+        if (imgApiConfig.api_type === 'sd_exacg' && !imgApiConfig.sd_exacg.api_key.trim()) {
+            window.app?.showNotification('SD·ExACG 需要配置 API KEY', 'error');
+            return;
+        }
+
+        // 更新配置
+        await this.updateConfig({ img_api: imgApiConfig });
         
         // 保存到文件  
         const success = await this.saveConfig();  
@@ -2465,16 +2649,67 @@ class AIWriteXConfigManager {
             }  
         }  
         
-        window.app?.showNotification(  
-            success ? '图片API配置已保存' : '保存图片API配置失败',  
-            success ? 'success' : 'error'  
-        );  
-    }  
-    
-    // 恢复默认图片API配置  
-    async resetImgAPIConfig() {  
-        window.dialogManager.showConfirm(  
-            '确定要恢复默认图片API配置吗？这将清除所有自定义设置。',  
+        window.app?.showNotification(
+            success ? '图片API配置已保存' : '保存图片API配置失败',
+            success ? 'success' : 'error'
+        );
+    }
+
+    async testImgAPIConfig() {
+        const testBtn = document.getElementById('test-img-api-config');
+        const originalHtml = testBtn ? testBtn.innerHTML : '';
+        if (testBtn) {
+            testBtn.disabled = true;
+            testBtn.innerHTML = '<i class="icon-play"></i> 测试中…';
+        }
+
+        const payload = {
+            provider: this.config.img_api.api_type,
+            prompt: 'a beautiful anime girl, detailed face, high quality'
+        };
+
+        try {
+            const response = await fetch('/api/images/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || `HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            window.app?.showNotification(result.message || '图片生成测试成功', 'success');
+
+            if (result.data?.image_url && /^https?:/i.test(result.data.image_url)) {
+                try {
+                    window.open(result.data.image_url, '_blank');
+                } catch (openError) {
+                    console.warn('无法自动打开新窗口:', openError);
+                }
+            } else if (result.data?.local_path) {
+                console.info('生成的图片已保存到:', result.data.local_path);
+            }
+        } catch (error) {
+            console.error('图片API测试失败:', error);
+            window.app?.showNotification(
+                `图片生成测试失败: ${error.message || error}`,
+                'error'
+            );
+        } finally {
+            if (testBtn) {
+                testBtn.disabled = false;
+                testBtn.innerHTML = originalHtml || '<i class="icon-play"></i> 测试生成';
+            }
+        }
+    }
+
+    // 恢复默认图片API配置
+    async resetImgAPIConfig() {
+        window.dialogManager.showConfirm(
+            '确定要恢复默认图片API配置吗？这将清除所有自定义设置。',
             async () => {  
                 try {  
                     const response = await fetch(`${this.apiEndpoint}/default`);  
