@@ -57,6 +57,7 @@ import tomlkit  # noqa 841
 from rich.console import Console  # noqa 841
 import platform
 import multiprocessing
+import argparse
 
 # 设置环境变量
 os.environ["PYTHONIOENCODING"] = "utf-8"
@@ -103,15 +104,51 @@ def run_old():
         print(f"启动失败: {str(fallback_error)}")
 
 
-def admin_run():
+def launch_ui(ui_version: int):
+    """根据版本启动对应的 UI"""
+    if ui_version == 1:
+        run_old()
+    else:
+        run()
+
+
+def admin_run(ui_version: int):
     """以管理员权限运行（跨平台）"""
     if platform.system() == "Windows":
         if is_admin():
-            run()
+            launch_ui(ui_version)
         else:
-            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 0)
+            script_path = Path(__file__).resolve()
+            params = f'"{script_path}" -ui {ui_version}'
+            ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", sys.executable, params, None, 1
+            )
     else:
-        run()
+        launch_ui(ui_version)
+
+
+def parse_arguments(argv: List[str]) -> argparse.Namespace:
+    """解析命令行参数"""
+    parser = argparse.ArgumentParser(description="AIWriteX Launcher")
+    parser.add_argument(
+        "-d",
+        "--direct",
+        action="store_true",
+        help="直接启动应用（跳过提权）",
+    )
+    parser.add_argument(
+        "-dn",
+        "--direct-new",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-ui",
+        type=int,
+        choices=[1, 2],
+        help="选择 UI 版本：1 为经典版，2 为图片版",
+    )
+    return parser.parse_args(argv)
 
 
 if __name__ == "__main__":
@@ -124,11 +161,20 @@ if __name__ == "__main__":
     ):
         sys.exit(0)
     else:
-        # 正常启动逻辑
-        if len(sys.argv) > 1:
-            if sys.argv[1] == "-d":
-                run_old()
-            elif sys.argv[1] == "-dn":
-                run()
+        args = parse_arguments(sys.argv[1:])
+
+        # 兼容旧的 -dn 参数，强制直接启动图片版 UI
+        if args.direct_new:
+            args.direct = True
+            ui_version = 2 if args.ui is None else args.ui
         else:
-            admin_run()
+            if args.ui is None:
+                # 保持兼容：direct 时默认经典 UI，其余情况默认图片 UI
+                ui_version = 1 if args.direct else 2
+            else:
+                ui_version = args.ui
+
+        if args.direct:
+            launch_ui(ui_version)
+        else:
+            admin_run(ui_version)
