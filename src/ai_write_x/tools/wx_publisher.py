@@ -4,10 +4,6 @@ from typing import Optional
 from datetime import datetime, timedelta
 import requests
 from io import BytesIO
-from http import HTTPStatus
-from urllib.parse import urlparse, unquote
-from pathlib import PurePosixPath
-from dashscope import ImageSynthesis
 import os
 import mimetypes
 import json
@@ -17,6 +13,7 @@ from src.ai_write_x.utils import utils
 from src.ai_write_x.config.config import Config
 from src.ai_write_x.utils import log
 from src.ai_write_x.utils.path_manager import PathManager
+from src.ai_write_x.tools.image_generator import ImageGenerator
 
 
 class PublishStatus(Enum):
@@ -50,6 +47,7 @@ class WeixinPublisher:
         self.img_api_type = config.img_api_type  # 只有一种模型，统一从配置读取
         self.img_api_key = config.img_api_key
         self.img_api_model = config.img_api_model
+        self.image_generator = ImageGenerator(config)
 
     @property
     def is_verified(self):
@@ -137,48 +135,17 @@ class WeixinPublisher:
 
         return ret
 
-    def _generate_img_by_ali(self, prompt, size="1024*1024"):
-        image_dir = PathManager.get_image_dir()
-        img_url = None
-        try:
-            rsp = ImageSynthesis.call(
-                api_key=self.img_api_key,
-                model=self.img_api_model,
-                prompt=prompt,
-                negative_prompt="低分辨率、错误、最差质量、低质量、残缺、多余的手指、比例不良",
-                n=1,
-                size=size,
-            )
-            if rsp.status_code == HTTPStatus.OK:
-                # 实际上只有一张图片，为了节约，不同时生成多张
-                for result in rsp.output.results:
-                    file_name = PurePosixPath(unquote(urlparse(result.url).path)).parts[-1]
-                    # 拼接绝对路径和文件名
-                    file_path = os.path.join(image_dir, file_name)
-                    with open(file_path, "wb+") as f:
-                        f.write(requests.get(result.url).content)
-                img_url = rsp.output.results[0].url
-            else:
-                log.print_log(
-                    "sync_call Failed, status_code: %s, code: %s, message: %s"
-                    % (rsp.status_code, rsp.code, rsp.message)
-                )
-        except Exception as e:
-            log.print_log(f"_generate_img_by_ali调用失败: {e}")
-
-        return img_url
-
     def generate_img(self, prompt, size="1024*1024"):
-        img_url = None
-        if self.img_api_type == "ali":
-            img_url = self._generate_img_by_ali(prompt, size)
-        elif self.img_api_type == "picsum":
-            image_dir = str(PathManager.get_image_dir())
-            width_height = size.split("*")
-            download_url = f"https://picsum.photos/{width_height[0]}/{width_height[1]}?random=1"
-            img_url = utils.download_and_save_image(download_url, image_dir)
-
-        return img_url
+        try:
+            result = self.image_generator.generate(
+                prompt,
+                provider=self.img_api_type,
+                overrides={"size": size},
+            )
+            return result.get_best_url()
+        except Exception as exc:
+            log.print_log(f"图片生成失败: {exc}", "error")
+            return None
 
     def upload_image(self, image_url):
         if not image_url:

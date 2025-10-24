@@ -21,25 +21,30 @@
                 <line x1="12" y1="16" x2="12" y2="12"/>  
                 <line x1="12" y1="8" x2="12.01" y2="8"/>  
             </svg>  
-            <div class="notice-content">  
-                <strong>设置说明:</strong>  
-                <ul>  
-                    <li>Picsum: 免费随机图片服务,无需设置</li>  
-                    <li>阿里: 需要设置API KEY和模型参数</li>  
-                    <li>点击"设为当前"切换使用的图片生成服务</li>  
-                </ul>  
-            </div>  
-        </div>  
-    </div>  
-      
-    <div class="config-actions">  
-        <button type="button" class="btn btn-primary" id="save-img-api-config">  
-            <i class="icon-save"></i>  
-            保存设置  
-        </button>  
-        <button type="button" class="btn btn-secondary" id="reset-img-api-config">  
-            <i class="icon-reset"></i>  
-            恢复默认  
-        </button>  
-    </div>  
+            <div class="notice-content">
+                <strong>设置说明:</strong>
+                <ul>
+                    <li>Picsum: 免费随机图片服务,无需设置</li>
+                    <li>阿里通义万象: 需要设置 API KEY 和模型名称</li>
+                    <li>SD·ExACG: 支持多模型生成, 可配置尺寸、步数等参数</li>
+                    <li>点击“设为当前”切换使用的图片生成服务, 建议保存后使用下方“测试生成”验证配置</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="config-actions">
+        <button type="button" class="btn btn-primary" id="save-img-api-config">
+            <i class="icon-save"></i>
+            保存设置
+        </button>
+        <button type="button" class="btn btn-secondary" id="test-img-api-config">
+            <i class="icon-play"></i>
+            测试生成
+        </button>
+        <button type="button" class="btn btn-secondary" id="reset-img-api-config">
+            <i class="icon-reset"></i>
+            恢复默认
+        </button>
+    </div>
 </div>

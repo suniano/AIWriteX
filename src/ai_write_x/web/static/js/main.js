@@ -51,12 +51,12 @@ class AIWriteXApp {
             });  
         });  
     
-        // 系统配置主菜单切换  
-        const navToggle = document.querySelector('.nav-toggle');  
-        if (navToggle) {  
-            navToggle.addEventListener('click', (e) => {  
-                e.preventDefault();  
-                const navItem = e.target.closest('.nav-item-expandable');  
+        // 系统配置主菜单切换
+        const navToggle = document.querySelector('.nav-toggle');
+        if (navToggle) {
+            navToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                const navItem = e.target.closest('.nav-item-expandable');
                 if (navItem) {  
                     navItem.classList.toggle('expanded');  
                 }  
@@ -89,15 +89,26 @@ class AIWriteXApp {
     
         // 停止按钮事件  
         const stopBtn = document.getElementById('stop-btn');  
-        if (stopBtn) {  
-            stopBtn.addEventListener('click', () => this.stopGeneration());  
-        }  
-    
-        // 配置保存事件 - 使用统一配置管理器  
-        const saveConfigBtn = document.getElementById('save-config-btn');  
-        if (saveConfigBtn) {  
-            saveConfigBtn.addEventListener('click', () => this.saveConfig());  
-        }  
+        if (stopBtn) {
+            stopBtn.addEventListener('click', () => this.stopGeneration());
+        }
+
+        // 文章列表刷新
+        const refreshArticlesBtn = document.getElementById('refresh-articles');
+        if (refreshArticlesBtn) {
+            refreshArticlesBtn.addEventListener('click', () => this.loadArticles(true));
+        }
+
+        const emptyRefreshBtn = document.getElementById('empty-refresh-btn');
+        if (emptyRefreshBtn) {
+            emptyRefreshBtn.addEventListener('click', () => this.loadArticles(true));
+        }
+
+        // 配置保存事件 - 使用统一配置管理器
+        const saveConfigBtn = document.getElementById('save-config-btn');
+        if (saveConfigBtn) {
+            saveConfigBtn.addEventListener('click', () => this.saveConfig());
+        }
     
         // 维度滑块事件  
         document.querySelectorAll('.dimension-slider').forEach(slider => {  
@@ -303,7 +314,11 @@ class AIWriteXApp {
             }  
         }  
         
-        this.currentView = viewName;  
+        this.currentView = viewName;
+
+        if (viewName === 'article-manager') {
+            this.loadArticles();
+        }
     }
       
     async startGeneration() {  
@@ -445,51 +460,104 @@ class AIWriteXApp {
         });  
     }  
       
-    async loadArticles() {  
-        // 加载文章列表  
-        try {  
-            const response = await fetch('/api/articles/');  
-            if (response.ok) {  
-                const articles = await response.json();  
-                this.updateArticleGrid(articles);  
-            }  
-        } catch (error) {  
-            console.error('加载文章失败:', error);  
-        }  
-    }  
-      
-    updateArticleGrid(articles) {  
-        const grid = document.getElementById('article-grid');  
-        if (!grid) return;  
-          
-        grid.innerHTML = '';  
-          
-        articles.forEach(article => {  
-            const card = this.createArticleCard(article);  
-            grid.appendChild(card);  
-        });  
-    }  
-      
-    createArticleCard(article) {  
-        const card = document.createElement('div');  
-        card.className = 'article-card';  
-          
-        card.innerHTML = `  
-            <div class="article-header">  
-                <h3 class="article-title">${this.escapeHtml(article.title || '未命名文章')}</h3>  
-                <span class="article-date">${new Date(article.created_at).toLocaleDateString()}</span>  
-            </div>  
-            <div class="article-content">  
-                <p class="article-excerpt">${this.escapeHtml(article.excerpt || '暂无摘要')}</p>  
-            </div>  
-            <div class="article-actions">  
-                <button class="btn btn-sm" onclick="app.editArticle('${article.id}')">编辑</button>  
-                <button class="btn btn-sm btn-secondary" onclick="app.deleteArticle('${article.id}')">删除</button>  
-            </div>  
-        `;  
-          
-        return card;  
-    }  
+    async loadArticles(showFeedback = false) {
+        // 加载文章列表
+        let fetchSuccess = false;
+        try {
+            const response = await fetch('/api/articles/');
+            if (response.ok) {
+                const articles = await response.json();
+                this.updateArticleGrid(articles);
+                fetchSuccess = true;
+            }
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        } catch (error) {
+            console.error('加载文章失败:', error);
+            this.showNotification('加载文章列表失败', 'error');
+        }
+
+        if (showFeedback && fetchSuccess) {
+            this.showNotification('文章列表已刷新', 'success');
+        }
+    }
+
+    updateArticleGrid(articles) {
+        const grid = document.getElementById('article-grid');
+        const emptyState = document.getElementById('article-empty-state');
+        if (!grid || !emptyState) return;
+
+        grid.innerHTML = '';
+
+        if (!Array.isArray(articles) || articles.length === 0) {
+            emptyState.style.display = 'flex';
+            grid.style.display = 'none';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        grid.style.display = 'grid';
+
+        articles.forEach(article => {
+            const card = this.createArticleCard(article);
+            grid.appendChild(card);
+        });
+    }
+
+    createArticleCard(article) {
+        const card = document.createElement('div');
+        card.className = 'article-card';
+        const title = this.escapeHtml(article.title || '未命名文章');
+        const updatedAt = this.escapeHtml(this.formatDateTime(article.updated_at || article.created_at));
+        const formatLabel = this.escapeHtml(article.format || '未知');
+        const sizeLabel = this.escapeHtml(this.formatFileSize(article.size_kb));
+        const excerpt = this.escapeHtml(article.excerpt || '暂无摘要');
+        const statusClass = (article.status || 'unpublished').toLowerCase();
+        const statusText = this.escapeHtml(article.status_text || '未发布');
+
+        card.innerHTML = `
+            <div class="article-header">
+                <h3 class="article-title" title="${title}">${title}</h3>
+                <div class="article-meta">
+                    <span title="最后更新时间">${updatedAt}</span>
+                    <span title="文章格式">${formatLabel}</span>
+                    <span title="文件大小">${sizeLabel}</span>
+                </div>
+            </div>
+            <div class="article-content">${excerpt}</div>
+            <div class="article-footer">
+                <span class="article-status ${statusClass}">${statusText}</span>
+                <div class="article-actions">
+                    <button class="btn btn-sm" onclick="app.editArticle('${article.id}')">编辑</button>
+                    <button class="btn btn-sm btn-secondary" onclick="app.previewArticle('${article.id}')">预览</button>
+                    <button class="btn btn-sm btn-danger" onclick="app.deleteArticle('${article.id}')">删除</button>
+                </div>
+            </div>
+        `;
+
+        return card;
+    }
+
+    formatDateTime(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return '';
+        }
+        return date.toLocaleString();
+    }
+
+    formatFileSize(sizeKb) {
+        const numericValue = Number(sizeKb);
+        if (!Number.isFinite(numericValue) || numericValue < 0) {
+            return '0 KB';
+        }
+        if (numericValue >= 1024) {
+            return `${(numericValue / 1024).toFixed(1)} MB`;
+        }
+        return `${numericValue.toFixed(1)} KB`;
+    }
       
     editArticle(articleId) {  
         // 编辑文章逻辑  
