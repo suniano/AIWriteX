@@ -60,12 +60,13 @@ async def generate_image(request: ImageGenerationRequest):
 class ImageTestRequest(BaseModel):
     provider: Optional[str] = None
     prompt: Optional[str] = None
+    overrides: Optional[Dict[str, Any]] = None
 
 
 @router.post("/test")
 async def test_image_api(request: ImageTestRequest):
     prompt = request.prompt or ImageGenerator.get_default_prompt()
-    result = _run_generation(prompt, request.provider)
+    result = _run_generation(prompt, request.provider, request.overrides)
 
     display_provider = request.provider or result.provider
     return {

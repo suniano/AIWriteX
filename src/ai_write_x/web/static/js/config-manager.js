@@ -1,13 +1,13 @@
 class AIWriteXConfigManager { 
     constructor() {
         // 维度分组定义  
-        this.DIMENSION_GROUPS = {  
-            'expression': {  
-                name: '文体表达维度',  
-                icon: 'icon-text',  
-                dimensions: ['style', 'language', 'tone'],  
-                description: '控制文章的文体风格、语言风格和语调语气'  
-            },  
+        this.DIMENSION_GROUPS = {
+            'expression': {
+                name: '文体表达维度',
+                icon: 'icon-text',
+                dimensions: ['style', 'language', 'tone'],
+                description: '控制文章的文体风格、语言风格和语调语气'
+            },
             'culture': {  
                 name: '文化时空维度',  
                 icon: 'icon-globe',  
@@ -31,12 +31,34 @@ class AIWriteXConfigManager {
                 icon: 'icon-target',  
                 dimensions: ['audience', 'theme', 'emotion', 'format'],  
                 description: '针对目标受众、主题内容、情感调性和表达格式'  
-            }  
+            }
         };
 
-        this.apiEndpoint = '/api/config';    
-        this.config = {};    
-        this.uiConfig = this.loadUIConfig();    
+        this.SD_EXACG_MODELS = [
+            { value: 0, label: '0 - MiaoMiao RealSkin vPred 1.0', description: '图片生成' },
+            { value: 1, label: '1 - MiaoMiao Harem 1.75', description: '图片生成' },
+            { value: 2, label: '2 - MiaoMiao Harem 1.6G', description: '图片生成' },
+            { value: 3, label: '3 - Miaomiao Harem vPred Dogma 1.1', description: '图片生成' },
+            { value: 4, label: '4 - MiaoMiao Pixel 像素 1.0', description: '像素风图片生成' },
+            { value: 5, label: '5 - NoobAIXL V1.1', description: '图片生成' },
+            { value: 6, label: '6 - NoobAIXL V1.0', description: '图片生成' },
+            { value: 7, label: '7 - illustrious_pencil 融合', description: '图片生成' },
+            { value: 8, label: '8 - Wainsfw illustrious v15', description: '图片生成' },
+            { value: 9, label: '9 - (testa)服务器1 Wainsfw Illustrious v13', description: '图片生成' },
+            { value: 10, label: '10 - (testa)服务器2 Wainsfw Illustrious v13', description: '图片生成' },
+            { value: 11, label: '11 - (testa) Wainsfw Illustrious v11', description: '图片生成' },
+            { value: 12, label: '12 - (testa) 真人模型 Nsfw-Real', description: '图片生成' },
+            { value: 13, label: '13 - Qwen image', description: '图片生成' },
+            { value: 14, label: '14 - Qwen Image Edit版', description: '需要原始图片 URL', requiresImage: true },
+            { value: 15, label: '15 - Qwen Image Edit版 (服务器2)', description: '需要原始图片 URL', requiresImage: true },
+            { value: 16, label: '16 - Qwen Image Edit版 2509', description: '需要原始图片 URL', requiresImage: true },
+            { value: 17, label: '17 - 视频生成模型服务器1 wan2.1-14B-fast (3秒视频)', description: '暂不支持', disabled: true },
+            { value: 18, label: '18 - 视频生成模型服务器2 wan2.2-14B-fast (5秒视频)', description: '暂不支持', disabled: true }
+        ];
+
+        this.apiEndpoint = '/api/config';
+        this.config = {};
+        this.uiConfig = this.loadUIConfig();
           
         this.currentPanel = 'ui';  
         this.init();   
@@ -2267,12 +2289,12 @@ class AIWriteXConfigManager {
         }  
     }
 
-    // 填充图片API UI  
-    populateImgAPIUI() {  
-        const container = document.getElementById('img-api-providers-container');  
-        if (!container || !this.config.img_api) return;  
-        
-        const currentImgAPIType = this.config.img_api.api_type;  
+    // 填充图片API UI
+    populateImgAPIUI() {
+        const container = document.getElementById('img-api-providers-container');
+        if (!container || !this.config.img_api) return;
+
+        const currentImgAPIType = this.config.img_api.api_type;
         
         // 清空现有内容  
         container.innerHTML = '';  
@@ -2296,14 +2318,19 @@ class AIWriteXConfigManager {
                 );  
                 container.appendChild(card);  
             }  
-        });  
-    }  
-    
-    // 创建图片API提供商卡片  
-    createImgAPIProviderCard(providerKey, providerDisplay, providerData, currentImgAPIType) {  
-        const card = document.createElement('div');  
-        card.className = 'api-provider-card';  
-        if (providerKey === currentImgAPIType) {  
+        });
+    }
+
+    getSdExacgModelInfo(modelIndex) {
+        const numericIndex = Number(modelIndex);
+        return this.SD_EXACG_MODELS.find(model => model.value === numericIndex);
+    }
+
+    // 创建图片API提供商卡片
+    createImgAPIProviderCard(providerKey, providerDisplay, providerData, currentImgAPIType) {
+        const card = document.createElement('div');
+        card.className = 'api-provider-card';
+        if (providerKey === currentImgAPIType) {
             card.classList.add('active');  
         }  
         
@@ -2367,14 +2394,6 @@ class AIWriteXConfigManager {
             keyRow.appendChild(endpointGroup);
             form.appendChild(keyRow);
 
-            const modelIndexGroup = this.createFormGroup(
-                '模型索引',
-                'number',
-                `img-api-${providerKey}-model-index`,
-                providerData.model_index ?? 0,
-                '可选模型索引 0-16',
-                false
-            );
             const seedGroup = this.createFormGroup(
                 '随机种子',
                 'number',
@@ -2383,13 +2402,101 @@ class AIWriteXConfigManager {
                 '-1 表示随机',
                 false
             );
-            modelIndexGroup.classList.add('form-group-half');
             seedGroup.classList.add('form-group-half');
             const modelRow = document.createElement('div');
             modelRow.className = 'form-row';
-            modelRow.appendChild(modelIndexGroup);
+            const modelGroup = document.createElement('div');
+            modelGroup.className = 'form-group form-group-half';
+
+            const modelLabel = document.createElement('label');
+            modelLabel.setAttribute('for', `img-api-${providerKey}-model-index`);
+            modelLabel.textContent = '模型选择';
+
+            const modelSelect = document.createElement('select');
+            modelSelect.className = 'form-control';
+            modelSelect.id = `img-api-${providerKey}-model-index`;
+
+            const currentModelIndex = Number.isFinite(Number(providerData.model_index))
+                ? String(Number(providerData.model_index))
+                : '0';
+
+            this.SD_EXACG_MODELS.forEach(model => {
+                const option = document.createElement('option');
+                option.value = String(model.value);
+                option.textContent = `${model.label}${model.description ? `（${model.description}）` : ''}`;
+                if (model.disabled) {
+                    option.disabled = true;
+                }
+                modelSelect.appendChild(option);
+            });
+
+            modelSelect.value = currentModelIndex;
+
+            const modelHelp = document.createElement('div');
+            modelHelp.className = 'form-help-text';
+
+            let imageSourceGroup;
+            let seedInputRef;
+            let widthInputRef;
+            let heightInputRef;
+            let stepsInputRef;
+            let cfgInputRef;
+
+            const updateModelHint = () => {
+                const selectedModel = this.getSdExacgModelInfo(modelSelect.value);
+                if (selectedModel) {
+                    const hintParts = [selectedModel.description || ''];
+                    if (selectedModel.requiresImage) {
+                        hintParts.push('需提供原始图片 URL');
+                    }
+                    modelHelp.textContent = hintParts.filter(Boolean).join('，');
+                } else {
+                    modelHelp.textContent = '';
+                }
+            };
+
+            const toggleImageSourceVisibility = () => {
+                const selectedModel = this.getSdExacgModelInfo(modelSelect.value);
+                if (imageSourceGroup) {
+                    imageSourceGroup.style.display = selectedModel?.requiresImage ? '' : 'none';
+                }
+
+                const disableAdvanced = Boolean(selectedModel?.requiresImage);
+                [seedInputRef, widthInputRef, heightInputRef, stepsInputRef, cfgInputRef]
+                    .filter(Boolean)
+                    .forEach(input => {
+                        input.disabled = disableAdvanced;
+                        if (disableAdvanced) {
+                            input.setAttribute('data-disabled-reason', 'edit-model');
+                        } else if (input.getAttribute('data-disabled-reason') === 'edit-model') {
+                            input.removeAttribute('data-disabled-reason');
+                        }
+                    });
+            };
+
+            modelSelect.addEventListener('change', async (e) => {
+                await this.updateImgAPIProviderField(providerKey, 'model_index', e.target.value);
+                updateModelHint();
+                toggleImageSourceVisibility();
+            });
+
+            modelGroup.appendChild(modelLabel);
+            modelGroup.appendChild(modelSelect);
+            modelGroup.appendChild(modelHelp);
+
+            modelRow.appendChild(modelGroup);
             modelRow.appendChild(seedGroup);
             form.appendChild(modelRow);
+
+            imageSourceGroup = this.createFormGroup(
+                '原始图片 URL',
+                'text',
+                `img-api-${providerKey}-image-source`,
+                providerData.image_source || '',
+                '选择 Qwen Image Edit 模型时必填，需可访问的图片链接',
+                false
+            );
+            form.appendChild(imageSourceGroup);
 
             const widthGroup = this.createFormGroup(
                 '宽度',
@@ -2449,40 +2556,38 @@ class AIWriteXConfigManager {
             );
             form.appendChild(negativeGroup);
 
-            const modelIndexInput = modelIndexGroup.querySelector('input');
-            if (modelIndexInput) {
-                modelIndexInput.min = 0;
-                modelIndexInput.step = 1;
+            seedInputRef = seedGroup.querySelector('input');
+            if (seedInputRef) {
+                seedInputRef.min = -1;
+                seedInputRef.step = 1;
             }
-            const seedInput = seedGroup.querySelector('input');
-            if (seedInput) {
-                seedInput.min = -1;
-                seedInput.step = 1;
+            widthInputRef = widthGroup.querySelector('input');
+            if (widthInputRef) {
+                widthInputRef.min = 64;
+                widthInputRef.max = 2048;
+                widthInputRef.step = 1;
             }
-            const widthInput = widthGroup.querySelector('input');
-            if (widthInput) {
-                widthInput.min = 64;
-                widthInput.max = 2048;
-                widthInput.step = 1;
+            heightInputRef = heightGroup.querySelector('input');
+            if (heightInputRef) {
+                heightInputRef.min = 64;
+                heightInputRef.max = 2048;
+                heightInputRef.step = 1;
             }
-            const heightInput = heightGroup.querySelector('input');
-            if (heightInput) {
-                heightInput.min = 64;
-                heightInput.max = 2048;
-                heightInput.step = 1;
+            stepsInputRef = stepsGroup.querySelector('input');
+            if (stepsInputRef) {
+                stepsInputRef.min = 1;
+                stepsInputRef.max = 50;
+                stepsInputRef.step = 1;
             }
-            const stepsInput = stepsGroup.querySelector('input');
-            if (stepsInput) {
-                stepsInput.min = 1;
-                stepsInput.max = 50;
-                stepsInput.step = 1;
+            cfgInputRef = cfgGroup.querySelector('input');
+            if (cfgInputRef) {
+                cfgInputRef.min = 1;
+                cfgInputRef.max = 10;
+                cfgInputRef.step = 0.1;
             }
-            const cfgInput = cfgGroup.querySelector('input');
-            if (cfgInput) {
-                cfgInput.min = 1;
-                cfgInput.max = 10;
-                cfgInput.step = 0.1;
-            }
+
+            updateModelHint();
+            toggleImageSourceVisibility();
         } else {
             const apiKeyGroup = this.createFormGroup(
                 'API KEY',
@@ -2619,7 +2724,8 @@ class AIWriteXConfigManager {
                 height: readNumberInput('img-api-sd_exacg-height', 512),
                 steps: readNumberInput('img-api-sd_exacg-steps', 20),
                 cfg: readNumberInput('img-api-sd_exacg-cfg', 7.0),
-                negative_prompt: document.getElementById('img-api-sd_exacg-negative-prompt')?.value || ''
+                negative_prompt: document.getElementById('img-api-sd_exacg-negative-prompt')?.value || '',
+                image_source: document.getElementById('img-api-sd_exacg-image-source')?.value || ''
             }
         };
 
@@ -2667,6 +2773,34 @@ class AIWriteXConfigManager {
             provider: this.config.img_api.api_type,
             prompt: 'a beautiful anime girl, detailed face, high quality'
         };
+
+        if (payload.provider === 'sd_exacg') {
+            const sdConfig = this.config.img_api.sd_exacg || {};
+            const currentModelIndex = Number.isFinite(Number(sdConfig.model_index))
+                ? Number(sdConfig.model_index)
+                : 0;
+            const selectedModel = this.getSdExacgModelInfo(currentModelIndex);
+            const overrides = {};
+
+            overrides.model_index = currentModelIndex;
+
+            if (selectedModel?.requiresImage) {
+                const imageSource = (sdConfig.image_source || '').trim();
+                if (!imageSource) {
+                    window.app?.showNotification('当前模型需要提供原始图片 URL，请先填写后再测试。', 'warning');
+                    if (testBtn) {
+                        testBtn.disabled = false;
+                        testBtn.innerHTML = originalHtml || '<i class="icon-play"></i> 测试生成';
+                    }
+                    return;
+                }
+                overrides.image_source = imageSource;
+            }
+
+            if (Object.keys(overrides).length > 0) {
+                payload.overrides = overrides;
+            }
+        }
 
         try {
             const response = await fetch('/api/images/test', {

@@ -187,6 +187,8 @@ class ImageGenerator:
             except (TypeError, ValueError):
                 return default
 
+        model_index = _to_int(settings.get("model_index", 0), 0)
+
         payload: Dict[str, Any] = {
             "prompt": prompt,
             "negative_prompt": settings.get("negative_prompt", ""),
@@ -194,12 +196,21 @@ class ImageGenerator:
             "height": _to_int(settings.get("height", 512), 512),
             "steps": _to_int(settings.get("steps", 20), 20),
             "cfg": _to_float(settings.get("cfg", 7.0), 7.0),
-            "model_index": _to_int(settings.get("model_index", 0), 0),
+            "model_index": model_index,
             "seed": _to_int(settings.get("seed", -1), -1),
         }
 
         image_source = settings.get("image_source")
-        if image_source:
+        edit_model_indices = {14, 15, 16}
+        if model_index in edit_model_indices:
+            if not image_source:
+                raise ValueError("Qwen Image Edit 模型需要提供原始图片 URL")
+            payload = {
+                "prompt": prompt,
+                "model_index": model_index,
+                "image_source": image_source,
+            }
+        elif image_source:
             payload["image_source"] = image_source
 
         try:
