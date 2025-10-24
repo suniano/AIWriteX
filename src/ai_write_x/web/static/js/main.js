@@ -1,22 +1,32 @@
 // AIWriteX 主JavaScript文件  
   
 class AIWriteXApp {  
-    constructor() {  
-        this.ws = null;  
-        this.currentView = 'creative-workshop';  
-        this.isGenerating = false;  
-          
-        this.init();  
-    }  
-      
-    init() {  
-        this.setupEventListeners();  
-        this.connectWebSocket();  
-        this.showView(this.currentView);  
-          
-        // 等待配置管理器初始化完成后再加载配置  
-        this.waitForConfigManager();  
-    }  
+    constructor() {
+        this.ws = null;
+        this.currentView = 'creative-workshop';
+        this.isGenerating = false;
+        this.creativeWorkshopInitialized = false;
+        this.templateCategories = [];
+        this.currentTemplateCategory = '随机分类';
+        this.currentTemplates = [];
+        this.statusPoller = null;
+        this.statusIndicator = null;
+        this.manualStop = false;
+
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.connectWebSocket();
+        this.showView(this.currentView);
+
+        this.statusIndicator = document.getElementById('generation-status');
+        this.updateStatusIndicator('等待配置', 'status-idle');
+
+        // 等待配置管理器初始化完成后再加载配置
+        this.waitForConfigManager();
+    }
       
     waitForConfigManager() {  
         if (window.configManager) {  
@@ -28,13 +38,14 @@ class AIWriteXApp {
       
     loadInitialData() {  
         // 根据当前视图加载相应数据  
-        switch (this.currentView) {  
-            case 'creative-workshop':  
-                this.loadDimensionalConfig();  
-                break;  
-            case 'article-manager':  
-                this.loadArticles();  
-                break;  
+        switch (this.currentView) {
+            case 'creative-workshop':
+                this.initializeCreativeWorkshop();
+                this.loadDimensionalConfig();
+                break;
+            case 'article-manager':
+                this.loadArticles();
+                break;
             case 'config-manager':  
                 // 配置已由 configManager 自动加载  
                 break;  
@@ -111,11 +122,74 @@ class AIWriteXApp {
         }
     
         // 维度滑块事件  
-        document.querySelectorAll('.dimension-slider').forEach(slider => {  
-            slider.addEventListener('input', (e) => {  
-                this.updateDimensionValue(e.target);  
-            });  
-        });  
+        document.querySelectorAll('.dimension-slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                this.updateDimensionValue(e.target);
+            });
+        });
+
+        const customTopicToggle = document.getElementById('custom-topic-toggle');
+        if (customTopicToggle) {
+            customTopicToggle.addEventListener('change', (e) => {
+                const enabled = e.target.checked;
+                this.toggleCustomTopicFields(enabled);
+                if (enabled) {
+                    const topicInput = document.getElementById('topic-input');
+                    if (!topicInput?.value.trim()) {
+                        this.updateStatusIndicator('请输入文章标题', 'status-warning');
+                    }
+                } else {
+                    this.updateStatusIndicator('使用热搜模式生成', 'status-idle');
+                }
+            });
+        }
+
+        const topicInput = document.getElementById('topic-input');
+        if (topicInput) {
+            topicInput.addEventListener('input', () => {
+                const value = topicInput.value.trim();
+                if (value) {
+                    this.updateStatusIndicator('自定义话题已就绪', 'status-progress');
+                } else if (customTopicToggle?.checked) {
+                    this.updateStatusIndicator('请输入文章标题', 'status-warning');
+                }
+            });
+        }
+
+        const templateCategorySelect = document.getElementById('template-category-select');
+        if (templateCategorySelect) {
+            templateCategorySelect.addEventListener('change', (e) => {
+                this.currentTemplateCategory = e.target.value || '随机分类';
+                this.loadTemplatesForCategory(this.currentTemplateCategory);
+            });
+        }
+
+        const templateSelect = document.getElementById('template-select');
+        if (templateSelect) {
+            templateSelect.addEventListener('change', () => {
+                if (customTopicToggle?.checked) {
+                    this.updateStatusIndicator('模板已更新', 'status-progress');
+                }
+            });
+        }
+
+        const referenceUrlsInput = document.getElementById('reference-urls-input');
+        if (referenceUrlsInput) {
+            referenceUrlsInput.addEventListener('input', () => {
+                if (customTopicToggle?.checked) {
+                    this.updateStatusIndicator('已更新参考素材', 'status-progress');
+                }
+            });
+        }
+
+        const referenceRatioSelect = document.getElementById('reference-ratio-select');
+        if (referenceRatioSelect) {
+            referenceRatioSelect.addEventListener('change', () => {
+                if (customTopicToggle?.checked) {
+                    this.updateStatusIndicator('借鉴比例已更新', 'status-progress');
+                }
+            });
+        }
     }
 
     showConfigPanel(panelType) {  
@@ -197,13 +271,17 @@ class AIWriteXApp {
         }, 30000);  
     }  
       
-    updateConnectionStatus(connected) {  
-        const indicator = document.querySelector('.status-indicator');  
-        if (indicator) {  
-            indicator.style.backgroundColor = connected ?   
-                'var(--success-color)' : 'var(--error-color)';  
-        }  
-    }  
+    updateConnectionStatus(connected) {
+        const indicator = document.getElementById('status-indicator');
+        if (indicator) {
+            indicator.style.backgroundColor = connected ?
+                'var(--success-color)' : 'var(--error-color)';
+            const text = indicator.querySelector('.status-text');
+            if (text) {
+                text.textContent = connected ? '在线' : '离线';
+            }
+        }
+    }
       
     addLogEntry(logData) {  
         const logPanel = document.getElementById('log-panel');  
@@ -268,12 +346,15 @@ class AIWriteXApp {
             });
             
             // 延迟初始化模板管理器  
-            if (viewName === 'template-manager' && !window.templateManager) {  
-                window.templateManager = new TemplateManager();  
-            } 
-        }  
-        
-        // 关键修改:如果切换到配置管理视图,默认激活界面设置子菜单  
+            if (viewName === 'template-manager' && !window.templateManager) {
+                window.templateManager = new TemplateManager();
+            }
+            if (viewName === 'creative-workshop') {
+                this.initializeCreativeWorkshop();
+            }
+        }
+
+        // 关键修改:如果切换到配置管理视图,默认激活界面设置子菜单
         if (viewName === 'config-manager') {  
             // 清除所有子菜单的active状态  
             document.querySelectorAll('.nav-sublink').forEach(sublink => {  
@@ -321,75 +402,402 @@ class AIWriteXApp {
         }
     }
       
-    async startGeneration() {  
-        if (this.isGenerating) return;  
-          
-        const topic = document.getElementById('topic-input')?.value;  
-        if (!topic || !topic.trim()) {  
-            this.showNotification('请输入创作主题', 'warning');  
-            return;  
-        }  
-          
-        this.isGenerating = true;  
-        this.updateGenerationUI(true);  
-          
-        try {  
-            const response = await fetch('/api/generate', {  
-                method: 'POST',  
-                headers: {  
-                    'Content-Type': 'application/json',  
-                },  
-                body: JSON.stringify({  
-                    topic: topic.trim(),  
-                    config: window.configManager ? window.configManager.getConfig() : {}  
-                })  
-            });  
-              
-            if (response.ok) {  
-                const result = await response.json();  
-                this.showNotification('内容生成已开始', 'success');  
-            } else {  
-                throw new Error('生成请求失败');  
-            }  
-        } catch (error) {  
-            console.error('生成失败:', error);  
-            this.showNotification('生成失败，请重试', 'error');  
-        } finally {  
-            this.isGenerating = false;  
-            this.updateGenerationUI(false);  
-        }  
-    }  
-      
-    async stopGeneration() {  
-        try {  
-            const response = await fetch('/api/generate/stop', {  
-                method: 'POST'  
-            });  
-              
-            if (response.ok) {  
-                this.showNotification('已停止生成', 'info');  
-            }  
-        } catch (error) {  
-            console.error('停止生成失败:', error);  
-        }  
-          
-        this.isGenerating = false;  
-        this.updateGenerationUI(false);  
-    }  
-      
-    updateGenerationUI(isGenerating) {  
-        const generateBtn = document.getElementById('generate-btn');  
-        const stopBtn = document.getElementById('stop-btn');  
-          
-        if (generateBtn) {  
-            generateBtn.disabled = isGenerating;  
-            generateBtn.textContent = isGenerating ? '生成中...' : '开始生成';  
-        }  
-          
-        if (stopBtn) {  
-            stopBtn.disabled = !isGenerating;  
-        }  
-    }  
+    async startGeneration() {
+        if (this.isGenerating) {
+            this.showNotification('任务正在执行中，请稍候', 'warning');
+            return;
+        }
+
+        const customTopicToggle = document.getElementById('custom-topic-toggle');
+        const useCustomTopic = customTopicToggle?.checked ?? false;
+
+        const topicInput = document.getElementById('topic-input');
+        const topic = useCustomTopic ? (topicInput?.value.trim() || '') : '';
+
+        if (useCustomTopic && !topic) {
+            this.showNotification('请输入文章标题', 'warning');
+            topicInput?.focus();
+            this.updateStatusIndicator('请输入文章标题', 'status-warning');
+            return;
+        }
+
+        const categorySelect = document.getElementById('template-category-select');
+        const templateSelect = document.getElementById('template-select');
+        const ratioSelect = document.getElementById('reference-ratio-select');
+
+        const selectedCategory = categorySelect?.value || '随机分类';
+        const selectedTemplate = templateSelect?.value || '随机模板';
+        const referenceRatio = parseFloat(ratioSelect?.value || '0.3') || 0.3;
+
+        const referenceData = this.collectReferenceUrls();
+        if (referenceData.invalid.length > 0) {
+            this.showNotification(`存在无效链接：${referenceData.invalid.join(', ')}`, 'warning');
+            this.updateStatusIndicator('请检查参考链接格式', 'status-warning');
+            return;
+        }
+
+        const payload = {
+            topic,
+            urls: referenceData.urls,
+            reference_ratio: referenceRatio,
+            custom_template_category:
+                useCustomTopic && selectedCategory !== '随机分类' ? selectedCategory : '',
+            custom_template:
+                useCustomTopic && selectedTemplate !== '随机模板' ? selectedTemplate : '',
+        };
+
+        this.isGenerating = true;
+        this.manualStop = false;
+        this.updateGenerationUI(true);
+        this.updateStatusIndicator('生成任务已提交...', 'status-progress');
+
+        try {
+            const response = await fetch('/api/content/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || '生成请求失败');
+            }
+
+            if (window.configManager) {
+                const config = window.configManager.getConfig();
+                config.custom_topic = topic;
+                config.urls = referenceData.urls;
+                config.reference_ratio = referenceRatio;
+                config.custom_template_category = payload.custom_template_category;
+                config.custom_template = payload.custom_template;
+            }
+
+            this.showNotification('内容生成已开始', 'success');
+            this.updateStatusIndicator('生成中...', 'status-progress');
+            this.startStatusPolling();
+        } catch (error) {
+            console.error('生成失败:', error);
+            this.isGenerating = false;
+            this.updateGenerationUI(false);
+            this.updateStatusIndicator('生成失败', 'status-error');
+            this.showNotification('生成失败，请重试', 'error');
+        }
+    }
+
+    async stopGeneration() {
+        const wasGenerating = this.isGenerating;
+        this.manualStop = true;
+        try {
+            const response = await fetch('/api/content/stop', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                this.showNotification('已停止生成', 'info');
+            } else {
+                const errorText = await response.text();
+                throw new Error(errorText || '停止生成失败');
+            }
+        } catch (error) {
+            console.error('停止生成失败:', error);
+            this.showNotification('停止生成失败，请重试', 'error');
+        } finally {
+            this.clearStatusPoller();
+            this.isGenerating = false;
+            this.updateGenerationUI(false);
+            if (wasGenerating) {
+                this.updateStatusIndicator('生成已停止', 'status-warning');
+            } else {
+                this.manualStop = false;
+            }
+        }
+    }
+
+    updateGenerationUI(isGenerating) {
+        const generateBtn = document.getElementById('generate-btn');
+        const stopBtn = document.getElementById('stop-btn');
+
+        if (generateBtn) {
+            generateBtn.disabled = isGenerating;
+            generateBtn.innerHTML = isGenerating
+                ? '<i class="icon-sparkles"></i> 生成中...'
+                : '<i class="icon-sparkles"></i> 开始生成';
+        }
+
+        if (stopBtn) {
+            stopBtn.disabled = !isGenerating;
+        }
+
+        const customTopicToggle = document.getElementById('custom-topic-toggle');
+        if (customTopicToggle) {
+            customTopicToggle.disabled = isGenerating;
+        }
+
+        const formControls = document.querySelectorAll('#generation-panel input, #generation-panel select, #generation-panel textarea');
+        formControls.forEach(control => {
+            if (['generate-btn', 'stop-btn'].includes(control.id)) {
+                return;
+            }
+
+            if (control.id === 'custom-topic-toggle') {
+                return;
+            }
+
+            if (isGenerating) {
+                if (!control.dataset.prevDisabled) {
+                    control.dataset.prevDisabled = control.disabled ? 'true' : 'false';
+                }
+                control.disabled = true;
+            } else if (control.dataset.prevDisabled) {
+                control.disabled = control.dataset.prevDisabled === 'true';
+                delete control.dataset.prevDisabled;
+            }
+        });
+
+        if (!isGenerating) {
+            this.toggleCustomTopicFields(customTopicToggle?.checked ?? false);
+        }
+    }
+
+    startStatusPolling(interval = 4000) {
+        if (!this.isGenerating) {
+            return;
+        }
+
+        this.clearStatusPoller();
+
+        const poll = async () => {
+            if (!this.isGenerating) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/content/status');
+                if (response.ok) {
+                    const status = await response.json();
+                    if (!status.is_running) {
+                        this.clearStatusPoller();
+                        this.isGenerating = false;
+                        this.updateGenerationUI(false);
+                        if (this.manualStop) {
+                            this.manualStop = false;
+                        } else {
+                            this.updateStatusIndicator('生成完成', 'status-success');
+                            this.showNotification('生成任务已完成', 'success');
+                            this.loadArticles();
+                        }
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.warn('检测生成状态失败:', error);
+            }
+
+            if (this.isGenerating) {
+                this.statusPoller = setTimeout(poll, interval);
+            }
+        };
+
+        poll();
+    }
+
+    clearStatusPoller() {
+        if (this.statusPoller) {
+            clearTimeout(this.statusPoller);
+            this.statusPoller = null;
+        }
+    }
+
+    collectReferenceUrls() {
+        const textarea = document.getElementById('reference-urls-input');
+        if (!textarea) {
+            return { urls: [], invalid: [] };
+        }
+
+        const rawEntries = textarea.value
+            .split(/\n|\|/)
+            .map(item => item.trim())
+            .filter(item => item.length > 0);
+
+        const urls = [];
+        const invalid = [];
+
+        for (const entry of rawEntries) {
+            if (/^https?:\/\//i.test(entry)) {
+                if (urls.length < 10) {
+                    urls.push(entry);
+                }
+            } else {
+                invalid.push(entry);
+            }
+        }
+
+        return { urls, invalid };
+    }
+
+    toggleCustomTopicFields(enabled) {
+        const controls = [
+            document.getElementById('topic-input'),
+            document.getElementById('template-category-select'),
+            document.getElementById('template-select'),
+            document.getElementById('reference-urls-input'),
+            document.getElementById('reference-ratio-select')
+        ];
+
+        controls.forEach(control => {
+            if (control) {
+                control.disabled = !enabled;
+            }
+        });
+
+        if (!enabled) {
+            this.updateStatusIndicator('使用热搜模式生成', 'status-idle');
+        }
+    }
+
+    async initializeCreativeWorkshop(forceReload = false) {
+        if (!window.configManager || !window.configManager.config) {
+            return;
+        }
+
+        if (!this.creativeWorkshopInitialized || forceReload || this.templateCategories.length === 0) {
+            await this.loadTemplateCategories();
+        }
+
+        const config = window.configManager.getConfig() || {};
+        const useCustomTopic = Boolean(config.custom_topic);
+        const selectedCategory = config.custom_template_category || '随机分类';
+        const selectedTemplate = config.custom_template || '随机模板';
+
+        this.populateTemplateCategorySelect(this.templateCategories, selectedCategory);
+        await this.loadTemplatesForCategory(selectedCategory, selectedTemplate);
+
+        const topicInput = document.getElementById('topic-input');
+        if (topicInput) {
+            topicInput.value = config.custom_topic || '';
+        }
+
+        const referenceInput = document.getElementById('reference-urls-input');
+        if (referenceInput) {
+            if (Array.isArray(config.urls) && config.urls.length > 0) {
+                referenceInput.value = config.urls.join('\n');
+            } else {
+                referenceInput.value = '';
+            }
+        }
+
+        const ratioSelect = document.getElementById('reference-ratio-select');
+        if (ratioSelect) {
+            const ratioValue = typeof config.reference_ratio === 'number' && config.reference_ratio > 0
+                ? config.reference_ratio
+                : 0.3;
+            const matchedOption = Array.from(ratioSelect.options).find(option => parseFloat(option.value) === ratioValue);
+            ratioSelect.value = matchedOption ? matchedOption.value : '0.3';
+        }
+
+        const toggle = document.getElementById('custom-topic-toggle');
+        if (toggle) {
+            toggle.checked = useCustomTopic;
+        }
+
+        this.toggleCustomTopicFields(useCustomTopic);
+
+        if (useCustomTopic) {
+            if (topicInput?.value.trim()) {
+                this.updateStatusIndicator('自定义话题已就绪', 'status-progress');
+            } else {
+                this.updateStatusIndicator('请输入文章标题', 'status-warning');
+            }
+        } else {
+            this.updateStatusIndicator('使用热搜模式生成', 'status-idle');
+        }
+
+        this.creativeWorkshopInitialized = true;
+        this.updateGenerationUI(this.isGenerating);
+    }
+
+    async loadTemplateCategories() {
+        try {
+            const response = await fetch('/api/config/template-categories');
+            if (response.ok) {
+                const result = await response.json();
+                this.templateCategories = Array.isArray(result.data) ? result.data : [];
+            } else {
+                this.templateCategories = [];
+            }
+        } catch (error) {
+            console.error('加载模板分类失败:', error);
+            this.templateCategories = [];
+        }
+    }
+
+    async loadTemplatesForCategory(category, preferredTemplate = '') {
+        const normalizedCategory = category || '随机分类';
+        this.currentTemplateCategory = normalizedCategory;
+
+        if (!normalizedCategory || normalizedCategory === '随机分类') {
+            this.currentTemplates = [];
+            this.populateTemplateSelect([], preferredTemplate);
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/config/templates/${encodeURIComponent(normalizedCategory)}`);
+            if (response.ok) {
+                const result = await response.json();
+                this.currentTemplates = Array.isArray(result.data) ? result.data : [];
+            } else {
+                this.currentTemplates = [];
+            }
+        } catch (error) {
+            console.error('加载模板列表失败:', error);
+            this.currentTemplates = [];
+        }
+
+        this.populateTemplateSelect(this.currentTemplates, preferredTemplate);
+    }
+
+    populateTemplateCategorySelect(categories, selectedCategory) {
+        const select = document.getElementById('template-category-select');
+        if (!select) return;
+
+        const options = ['随机分类', ...new Set((categories || []).filter(item => item && item.trim()))];
+
+        select.innerHTML = options
+            .map(option => `<option value="${option}">${option}</option>`)
+            .join('');
+
+        const target = options.includes(selectedCategory) ? selectedCategory : '随机分类';
+        select.value = target;
+    }
+
+    populateTemplateSelect(templates, selectedTemplate) {
+        const select = document.getElementById('template-select');
+        if (!select) return;
+
+        const options = ['随机模板', ...(templates || [])];
+
+        select.innerHTML = options
+            .map(option => `<option value="${option}">${option}</option>`)
+            .join('');
+
+        const target = templates && templates.includes(selectedTemplate) ? selectedTemplate : '随机模板';
+        select.value = target;
+    }
+
+    updateStatusIndicator(message, statusClass = 'status-idle') {
+        if (!this.statusIndicator) {
+            this.statusIndicator = document.getElementById('generation-status');
+        }
+
+        if (!this.statusIndicator) return;
+
+        this.statusIndicator.textContent = message;
+        this.statusIndicator.classList.remove('status-idle', 'status-progress', 'status-success', 'status-error', 'status-warning');
+        this.statusIndicator.classList.add(statusClass);
+    }
       
     // 使用统一配置管理器保存配置  
     async saveConfig() {  

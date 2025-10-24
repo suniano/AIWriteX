@@ -1080,7 +1080,7 @@ class AIWriteXConfigManager {
                 const apiMatch = id.match(/api-(\w+)-(key-name|api-base)/);
                 if (apiMatch) {
                     const [, provider, field] = apiMatch;
-                    if (field === 'api-base' && provider === 'Custom') {
+                    if (field === 'api-base') {
                         await this.updateAPIProviderField(provider, 'api_base', e.target.value);
                     }
                     return;
@@ -1567,49 +1567,16 @@ class AIWriteXConfigManager {
             'text',
             `api-${providerKey}-api-base`,
             providerData.api_base || '',
-            '',
+            providerKey === 'Custom'
+                ? '例如：https://api.openai.com/v1'
+                : '支持 OpenAI 兼容协议的接口地址',
             false,
-            providerKey !== 'Custom'  // 自定义API允许编辑
+            false
         );
         apiBaseGroup.classList.add('form-group-half');  
         
-        /*
-        const keyNameGroup = this.createFormGroup(    
-            'KEY名称',    
-            'text',    
-            `api-${providerKey}-key-name`,    
-            providerData.key || '',    
-            '',    
-            false,    
-            false
-        );    
-        keyNameGroup.classList.add('form-group-half');  
-        const keyNameInput = keyNameGroup.querySelector('input');  
-        if (keyNameInput) {  
-            keyNameInput.disabled = true;  
-            keyNameInput.style.userSelect = 'none';  
-            keyNameInput.style.cursor = 'not-allowed';  
-        }  
-        
-        const apiBaseGroup = this.createFormGroup(    
-            'API BASE',    
-            'text',    
-            `api-${providerKey}-api-base`,    
-            providerData.api_base || '',    
-            '',    
-            false,    
-            false  
-        );    
-        apiBaseGroup.classList.add('form-group-half');  
-        const apiBaseInput = apiBaseGroup.querySelector('input');  
-        if (apiBaseInput) {  
-            apiBaseInput.disabled = true;  
-            apiBaseInput.style.userSelect = 'none';  
-            apiBaseInput.style.cursor = 'not-allowed';  
-        }
-         */
-        row1.appendChild(keyNameGroup);  
-        row1.appendChild(apiBaseGroup);  
+        row1.appendChild(keyNameGroup);
+        row1.appendChild(apiBaseGroup);
         
         // 行2: KEY选择和模型选择同一行,各占一半  
         const row2 = document.createElement('div');  
@@ -3041,15 +3008,15 @@ class AIWriteXConfigManager {
         row2.className = 'form-row';  
         
         // Base URL  
-        const baseUrlGroup = this.createFormGroup(  
-            'Base URL',  
-            'text',  
-            `aiforge-${providerKey}-base-url`,  
-            providerData.base_url || '',  
-            'API的基础地址',  
+        const baseUrlGroup = this.createFormGroup(
+            'Base URL',
+            'text',
+            `aiforge-${providerKey}-base-url`,
+            providerData.base_url || '',
+            'OpenAI 兼容 API 的基础地址',
             true,
-            true
-        );  
+            false
+        );
         baseUrlGroup.classList.add('form-group-third');  
         
         // 超时时间  
