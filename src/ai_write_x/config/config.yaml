@@ -115,7 +115,6 @@ api:
       - openai/Qwen/Qwen3-32B
     api_base: https://api.siliconflow.cn/v1
   Custom:
-    key: CUSTOM_API_KEY
     key_index: 0
     api_key: []
     model_index: 0

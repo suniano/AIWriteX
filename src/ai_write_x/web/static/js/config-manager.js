@@ -2558,10 +2558,10 @@ class AIWriteXConfigManager {
         container.innerHTML = '';  
         
         // 获取所有LLM提供商  
-        const providers = Object.keys(aiforgeConfig.llm).map(key => ({  
-            key: key,  
-            display: key.charAt(0).toUpperCase() + key.slice(1)  
-        }));  
+        const providers = Object.keys(aiforgeConfig.llm).map(key => ({
+            key: key,
+            display: this.getAIForgeProviderDisplayName(key)
+        }));
         
         // 为每个提供商生成卡片  
         providers.forEach(provider => {  
@@ -2672,16 +2672,24 @@ class AIWriteXConfigManager {
         row2.className = 'form-row';  
         
         // Base URL  
-        const baseUrlGroup = this.createFormGroup(  
-            'Base URL',  
-            'text',  
-            `aiforge-${providerKey}-base-url`,  
-            providerData.base_url || '',  
-            'API的基础地址',  
+        const isCustomProvider = providerKey === 'custom';
+        const baseUrlGroup = this.createFormGroup(
+            'Base URL',
+            'text',
+            `aiforge-${providerKey}-base-url`,
+            providerData.base_url || '',
+            isCustomProvider ? 'OpenAI兼容格式的基础地址' : 'API的基础地址',
             true,
-            true
-        );  
-        baseUrlGroup.classList.add('form-group-third');  
+            !isCustomProvider
+        );
+        baseUrlGroup.classList.add('form-group-third');
+        if (!isCustomProvider) {
+            const baseUrlInput = baseUrlGroup.querySelector('input');
+            if (baseUrlInput) {
+                baseUrlInput.style.userSelect = 'none';
+                baseUrlInput.style.cursor = 'not-allowed';
+            }
+        }
         
         // 超时时间  
         const timeoutGroup = this.createFormGroup(  
@@ -2730,10 +2738,10 @@ class AIWriteXConfigManager {
         // 刷新UI  
         this.populateAIForgeLLMUI();  
         
-        window.app?.showNotification(  
-            `已切换到${providerKey}`,  
-            'success'  
-        );  
+        window.app?.showNotification(
+            `已切换到${this.getAIForgeProviderDisplayName(providerKey)}`,
+            'success'
+        );
     }
 
     // 更新AIForge LLM提供商字段  

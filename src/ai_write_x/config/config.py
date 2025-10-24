@@ -165,7 +165,6 @@ class Config:
                     "api_base": "https://api.siliconflow.cn/v1",
                 },
                 "Custom": {
-                    "key": "CUSTOM_API_KEY",
                     "key_index": 0,
                     "api_key": [],
                     "model_index": 0,
@@ -1215,6 +1214,14 @@ class Config:
                     "timeout": 60,
                     "max_tokens": 8192,
                 },
+                "custom": {
+                    "type": "openai",
+                    "model": "gpt-4o-mini",
+                    "api_key": "",
+                    "base_url": "https://api.openai.com/v1",
+                    "timeout": 60,
+                    "max_tokens": 8192,
+                },
                 "grok": {
                     "type": "grok",
                     "model": "xai/grok-3",
@@ -1698,16 +1705,15 @@ class Config:
             if os.path.exists(self.config_aiforge_path):
                 try:
                     with open(self.config_aiforge_path, "r", encoding="utf-8") as f:
-                        self.aiforge_config = tomlkit.parse(f.read())
-                        if not self.aiforge_config:
-                            self.aiforge_config = self.default_aiforge_config
+                        loaded_aiforge = tomlkit.parse(f.read())
+                        self.aiforge_config = self.merge_aiforge_config(loaded_aiforge)
                 except Exception as e:
                     self.error_message = f"加载 aiforge.toml 失败: {e}"
                     log.print_log(self.error_message, "error")
-                    self.aiforge_config = self.default_aiforge_config
+                    self.aiforge_config = self.merge_aiforge_config({})
                     ret = False
             else:
-                self.aiforge_config = self.default_aiforge_config
+                self.aiforge_config = self.merge_aiforge_config({})
 
             return ret
 
@@ -1777,6 +1783,23 @@ class Config:
             if not self.config:
                 raise ValueError("配置未加载")
             return self.config
+
+    def merge_aiforge_config(self, user_config: dict | None) -> dict:
+        import copy
+
+        if not isinstance(user_config, dict):
+            user_config = {}
+
+        def merge(default_dict: dict, override: dict) -> dict:
+            result = copy.deepcopy(default_dict)
+            for key, value in override.items():
+                if key in default_dict and isinstance(default_dict[key], dict) and isinstance(value, dict):
+                    result[key] = merge(default_dict[key], value)
+                else:
+                    result[key] = value
+            return result
+
+        return merge(self.default_aiforge_config, user_config)
 
     def validate_config(self):
         """验证配置，仅在 CrewAI 执行时调用"""

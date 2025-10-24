@@ -753,6 +753,11 @@ class ConfigEditor:
         aiforge_config = self.config.aiforge_config
         llm_providers = list(aiforge_config["llm"].keys())
         default_provider = aiforge_config["default_llm_provider"]
+        provider_display_names = [
+            self._get_aiforge_provider_display_name(provider)
+            for provider in llm_providers
+        ]
+        default_provider_display = self._get_aiforge_provider_display_name(default_provider)
 
         # 获取当前提供商的配置，防止键不存在
         provider_config = aiforge_config["llm"].get(default_provider, {})
@@ -792,8 +797,8 @@ class ConfigEditor:
             [
                 sg.Text("模型提供商*:", size=(15, 1)),
                 sg.Combo(
-                    llm_providers,
-                    default_value=default_provider,
+                    provider_display_names,
+                    default_value=default_provider_display,
                     key="-AIFORGE_DEFAULT_LLM_PROVIDER-",
                     size=(15, 1),
                     readonly=True,
@@ -1309,7 +1314,6 @@ class ConfigEditor:
         if display_name == "自定义":
             return "Custom"
         return display_name
-
     def _collect_selected_dimensions(self, values, dimension_options):
         """
         收集用户选择的维度
@@ -2012,7 +2016,9 @@ class ConfigEditor:
             # 动态更新 AIForge 提供商的所有参数
             elif event == "-AIFORGE_DEFAULT_LLM_PROVIDER-":
                 try:
-                    selected_provider = values["-AIFORGE_DEFAULT_LLM_PROVIDER-"]
+                    selected_provider = self._resolve_aiforge_provider(
+                        values["-AIFORGE_DEFAULT_LLM_PROVIDER-"]
+                    )
                     # 获取新选中的提供商的配置
                     provider_config = self.config.aiforge_config["llm"].get(selected_provider, {})
                     # 更新所有参数的输入框
@@ -2043,7 +2049,9 @@ class ConfigEditor:
             elif event.startswith("-SAVE_AIFORGE-"):
                 aiforge_config = self.config.aiforge_config.copy()
                 try:
-                    selected_provider = values["-AIFORGE_DEFAULT_LLM_PROVIDER-"]
+                    selected_provider = self._resolve_aiforge_provider(
+                        values["-AIFORGE_DEFAULT_LLM_PROVIDER-"]
+                    )
                     aiforge_config["default_llm_provider"] = selected_provider
 
                     # 不支持修改AIForge的内置语言

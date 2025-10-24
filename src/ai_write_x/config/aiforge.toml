@@ -13,6 +13,14 @@ base_url = "https://openrouter.ai/api/v1"
 timeout = 60
 max_tokens = 8192
 
+[llm.custom]
+type = "openai"
+model = "gpt-4o-mini"
+api_key = ""
+base_url = "https://api.openai.com/v1"
+timeout = 60
+max_tokens = 8192
+
 [llm.grok]
 type = "grok"
 model = "xai/grok-3"
