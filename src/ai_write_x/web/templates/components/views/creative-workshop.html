@@ -1,0 +1,121 @@
+<div id="creative-workshop-view" class="view-content" style="display: none;">
+    <section class="creative-workshop">
+        <header class="view-header">
+            <div class="header-intro">
+                <h2>创意工坊</h2>
+                <p class="view-description">填写创作意图并选择模板，立即让大模型生成完整文章</p>
+            </div>
+            <div class="header-actions">
+                <span class="status-indicator" id="generation-status">等待配置</span>
+            </div>
+        </header>
+
+        <div class="creative-layout">
+            <div class="generation-panel" id="generation-panel">
+                <div class="creative-card">
+                    <div class="card-header">
+                        <div>
+                            <h3>创作主题</h3>
+                            <p>支持自定义标题或直接使用系统热搜话题</p>
+                        </div>
+                        <label class="switch" title="启用自定义话题">
+                            <input type="checkbox" id="custom-topic-toggle">
+                            <span class="switch-slider"></span>
+                            <span class="switch-text">自定义话题</span>
+                        </label>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label" for="topic-input">文章标题</label>
+                            <input type="text" id="topic-input" class="form-input" placeholder="请输入文章标题，例如：2025 年 AI 写作趋势" disabled>
+                            <p class="form-help">勾选“自定义话题”后可输入标题，留空则自动采用热搜话题</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="creative-card">
+                    <div class="card-header">
+                        <div>
+                            <h3>模板与结构</h3>
+                            <p>选择最适合文章风格的模板，快速匹配内容结构</p>
+                        </div>
+                    </div>
+
+                    <div class="card-body form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="template-category-select">模板分类</label>
+                            <select id="template-category-select" class="form-select" disabled>
+                                <option value="随机分类">随机分类</option>
+                            </select>
+                            <p class="form-help">自定义话题下可指定模板分类，未选择时由系统自动匹配</p>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="template-select">模板</label>
+                            <select id="template-select" class="form-select" disabled>
+                                <option value="随机模板">随机模板</option>
+                            </select>
+                            <p class="form-help">可以从模板管理中维护模板内容</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="creative-card">
+                    <div class="card-header">
+                        <div>
+                            <h3>参考素材</h3>
+                            <p>提供参考链接和借鉴比例，帮助模型更好地掌握素材</p>
+                        </div>
+                    </div>
+
+                    <div class="card-body form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="reference-urls-input">参考链接</label>
+                            <textarea id="reference-urls-input" class="form-textarea" placeholder="支持多个链接，可换行或使用竖线 | 分隔" disabled></textarea>
+                            <p class="form-help">链接需以 http(s):// 开头，最多支持 10 个</p>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="reference-ratio-select">借鉴比例</label>
+                            <select id="reference-ratio-select" class="form-select" disabled>
+                                <option value="0.1">10%</option>
+                                <option value="0.2">20%</option>
+                                <option value="0.3" selected>30%</option>
+                                <option value="0.5">50%</option>
+                                <option value="0.75">75%</option>
+                            </select>
+                            <p class="form-help">控制文章对参考素材的借鉴程度</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="creative-actions">
+                    <button type="button" class="btn btn-primary" id="generate-btn">
+                        <i class="icon-sparkles"></i>
+                        开始生成
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="stop-btn" disabled>
+                        <i class="icon-stop"></i>
+                        停止生成
+                    </button>
+                </div>
+            </div>
+
+            <aside class="insight-panel">
+                <div class="info-card">
+                    <h3>使用说明</h3>
+                    <ul>
+                        <li>确保在“系统设置 → 大模型 API”中配置可用的 OpenAI 兼容接口和 Key</li>
+                        <li>支持填写自建或代理的 API Base 地址</li>
+                        <li>如需结合外部资料，可粘贴参考链接并设置借鉴比例</li>
+                        <li>模板配置来自模板管理，可根据行业场景自定义</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>执行记录</h3>
+                    <p>生成任务启动后，可在右侧实时日志窗口观察执行进度，完成的文章会自动出现在文章管理中。</p>
+                </div>
+            </aside>
+        </div>
+    </section>
+</div>
