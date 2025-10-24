@@ -165,7 +165,6 @@ class Config:
                     "api_base": "https://api.siliconflow.cn/v1",
                 },
                 "Custom": {
-                    "key": "OPENAI_API_KEY",
                     "key_index": 0,
                     "api_key": [],
                     "model_index": 0,

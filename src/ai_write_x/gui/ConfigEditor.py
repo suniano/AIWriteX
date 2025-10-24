@@ -1314,38 +1314,6 @@ class ConfigEditor:
         if display_name == "自定义":
             return "Custom"
         return display_name
-
-    def _get_aiforge_provider_display_name(self, provider: str) -> str:
-        mapping = {
-            "openrouter": "OpenRouter",
-            "grok": "Grok",
-            "qwen": "Qwen",
-            "gemini": "Gemini",
-            "ollama": "Ollama",
-            "deepseek": "DeepSeek",
-            "claude": "Claude",
-            "cohere": "Cohere",
-            "mistral": "Mistral",
-            "custom": "自定义",
-        }
-        return mapping.get(provider, provider.capitalize())
-
-    def _resolve_aiforge_provider(self, display_name: str) -> str:
-        reverse_mapping = {
-            "OpenRouter": "openrouter",
-            "Grok": "grok",
-            "Qwen": "qwen",
-            "Gemini": "gemini",
-            "Ollama": "ollama",
-            "DeepSeek": "deepseek",
-            "Claude": "claude",
-            "Cohere": "cohere",
-            "Mistral": "mistral",
-            "自定义": "custom",
-            "Custom": "custom",
-        }
-        return reverse_mapping.get(display_name, display_name.lower())
-
     def _collect_selected_dimensions(self, values, dimension_options):
         """
         收集用户选择的维度

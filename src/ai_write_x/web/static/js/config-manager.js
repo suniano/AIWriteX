@@ -1442,22 +1442,6 @@ class AIWriteXConfigManager {
         return providerKey;
     }
 
-    getAIForgeProviderDisplayName(providerKey) {
-        const mapping = {
-            openrouter: 'OpenRouter',
-            grok: 'Grok',
-            qwen: 'Qwen',
-            gemini: 'Gemini',
-            ollama: 'Ollama',
-            deepseek: 'DeepSeek',
-            claude: 'Claude',
-            cohere: 'Cohere',
-            mistral: 'Mistral',
-            custom: '自定义'
-        };
-        return mapping[providerKey] || providerKey.charAt(0).toUpperCase() + providerKey.slice(1);
-    }
-
     // 填充大模型API UI  
     populateAPIUI() {  
         const container = document.getElementById('api-providers-container');  
