@@ -24,6 +24,8 @@ class WebViewGUI:
         self.server_thread = None
         self.window = None
         self.server_port = 8000
+        self.server_loop = None
+        self.uvicorn_server = None
         self.tray_manager = TrayManager("AIWriteX")
         self.tray_thread = None
 
@@ -65,9 +67,7 @@ class WebViewGUI:
                 self.tray_manager.stop_tray()
 
             # 2. 停止后端服务器
-            if hasattr(self, "server_thread") and self.server_thread:
-                # 这里需要添加服务器停止逻辑
-                pass
+            self.stop_server()
 
             # 3. 关闭WebView窗口
             if self.window:
@@ -82,6 +82,25 @@ class WebViewGUI:
             # 强制退出
             os._exit(0)
 
+    def stop_server(self):
+        """安全地停止内嵌的Uvicorn服务器"""
+        try:
+            if self.uvicorn_server:
+                self.uvicorn_server.should_exit = True
+                self.uvicorn_server.force_exit = True
+
+            if self.server_loop:
+                # 唤醒事件循环以便退出
+                self.server_loop.call_soon_threadsafe(lambda: None)
+
+            if self.server_thread and self.server_thread.is_alive():
+                self.server_thread.join(timeout=5)
+        finally:
+            self.uvicorn_server = None
+            self.server_loop = None
+            if self.server_thread and not self.server_thread.is_alive():
+                self.server_thread = None
+
     def start_server(self):
         """启动FastAPI服务器"""
         try:
@@ -94,10 +113,19 @@ class WebViewGUI:
             # 在新的事件循环中运行服务器
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
+
+            # 保存引用, 以便退出时能够关闭
+            self.server_loop = loop
+            self.uvicorn_server = server
+
             loop.run_until_complete(server.serve())
 
         except Exception as e:
             log.print_log(f"服务器启动失败: {str(e)}", "error")
+        finally:
+            # 线程结束后重置引用
+            self.uvicorn_server = None
+            self.server_loop = None
 
     def check_server_ready(self, max_attempts=30):
         """检查服务器是否就绪"""
@@ -142,14 +170,9 @@ class WebViewGUI:
 
     def on_window_closing(self):
         """窗口关闭事件处理"""
-        # 如果有托盘，隐藏到托盘而不是退出
-        if self.tray_manager and self.tray_manager.tray:
-            self.hide_window()
-            return False  # 阻止窗口关闭
-        else:
-            # 没有托盘时直接退出
-            self.quit_application()
-            return True
+        # 点击关闭按钮时直接退出应用
+        self.quit_application()
+        return True
 
     def start(self):
         """启动WebView应用"""

@@ -188,6 +188,7 @@ class Config:
                     "cfg": 7.0,
                     "negative_prompt": "",
                     "seed": -1,
+                    "image_source": "",
                 },
             },
             "use_template": True,
