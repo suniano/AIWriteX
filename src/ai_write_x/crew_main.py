@@ -212,6 +212,7 @@ def ai_write_x_main(config_data=None):
     os.environ[config.api_key_name] = config.api_key
     os.environ["MODEL"] = config.api_model
     os.environ["OPENAI_API_BASE"] = config.api_apibase
+    os.environ["OPENAI_BASE_URL"] = config.api_apibase
 
     # 直接启动内容生成，不处理发布
     return ai_write_x_run(config_data=config_data)

@@ -59,6 +59,7 @@ api:
       - openrouter/google/gemini-2.0-flash-lite-preview-02-05:free
       - openrouter/google/gemini-2.0-flash-thinking-exp:free
     api_base: https://openrouter.ai/api/v1
+    timeout: 60
   Deepseek:
     key: DEEPSEEK_API_KEY
     key_index: 0
@@ -68,6 +69,7 @@ api:
       - deepseek/deepseek-chat
       - deepseek/deepseek-reasoner
     api_base: https://api.deepseek.com/v1
+    timeout: 60
   Grok:
     key: XAI_API_KEY
     key_index: 0
@@ -76,6 +78,7 @@ api:
     model:
       - xai/grok-3
     api_base: https://api.x.ai/v1/chat/completions
+    timeout: 60
   Qwen:
     key: OPENAI_API_KEY
     key_index: 0
@@ -84,6 +87,7 @@ api:
     model:
       - openai/qwen-plus
     api_base: https://dashscope.aliyuncs.com/compatible-mode/v1
+    timeout: 60
   Gemini:
     key: GEMINI_API_KEY
     key_index: 0
@@ -94,6 +98,7 @@ api:
       - gemini/gemini-1.5-pro
       - gemini/gemini-2.0-flash
     api_base: https://generativelanguage.googleapis.com/v1beta/openai/
+    timeout: 60
   Ollama:
     key: OPENAI_API_KEY
     model_index: 0
@@ -103,6 +108,7 @@ api:
       - ollama/deepseek-r1:14b
       - ollama/deepseek-r1:7b
     api_base: http://localhost:11434
+    timeout: 120
   SiliconFlow:
     key: OPENAI_API_KEY
     key_index: 0
@@ -114,6 +120,7 @@ api:
       - openai/Qwen/QwQ-32B
       - openai/Qwen/Qwen3-32B
     api_base: https://api.siliconflow.cn/v1
+    timeout: 60
   Custom:
     key: CUSTOM_API_KEY
     key_index: 0
@@ -122,6 +129,7 @@ api:
     model:
       - gpt-4o-mini
     api_base: https://api.openai.com/v1
+    timeout: 60
 img_api:
   api_type: picsum
   ali:
