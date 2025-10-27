@@ -1,9 +1,9 @@
 /* 创意工坊视图样式 */  
-.creative-workshop {  
-    display: flex;  
-    flex-direction: column;  
-    height: 100%;  
-}  
+.creative-workshop {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+}
   
 .dimension-controls {  
     display: grid;  
@@ -89,13 +89,17 @@
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
     gap: 24px;
-    height: 100%;
+    align-items: start;
+    min-height: 0;
 }
 
 .generation-panel {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 6px;
 }
 
 .creative-card {
@@ -139,6 +143,26 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 20px;
+}
+
+.action-card {
+    position: sticky;
+    bottom: 0;
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+    z-index: 1;
+    overflow: visible;
+}
+
+.action-body {
+    gap: 12px;
+}
+
+.action-description {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
 }
 
 .creative-actions {
@@ -205,6 +229,7 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
+    min-height: 0;
 }
 
 .info-card {
@@ -213,6 +238,94 @@
     border: 1px solid var(--border-color);
     padding: 20px;
     box-shadow: var(--shadow);
+}
+
+.log-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+}
+
+.log-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.log-clear-btn {
+    padding: 4px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.log-clear-btn:hover {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.log-panel {
+    flex: 1;
+    min-height: 220px;
+    max-height: 320px;
+    overflow-y: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--background-color);
+    padding: 12px 14px;
+    font-family: "JetBrains Mono", "SFMono-Regular", "Menlo", monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.log-entry {
+    display: flex;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px dashed rgba(148, 163, 184, 0.2);
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-entry.info .log-timestamp {
+    color: var(--text-secondary);
+}
+
+.log-entry.error {
+    color: var(--error-color);
+}
+
+.log-entry.success {
+    color: var(--success-color);
+}
+
+.log-entry.internal {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.log-timestamp {
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.log-message {
+    word-break: break-word;
+}
+
+.log-empty {
+    text-align: center;
+    padding: 24px 0;
+    color: var(--text-secondary);
 }
 
 .info-card h3 {
@@ -251,6 +364,10 @@
     .info-card {
         min-width: 260px;
     }
+
+    .log-card {
+        max-width: none;
+    }
 }
 
 @media (max-width: 768px) {
@@ -261,6 +378,10 @@
 
     .creative-actions .btn {
         width: 100%;
+    }
+
+    .log-panel {
+        max-height: 260px;
     }
 }
 
