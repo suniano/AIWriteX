@@ -1472,6 +1472,27 @@ class AIWriteXConfigManager {
         return providerKey;
     }
 
+    getAIForgeProviderDisplayName(providerKey) {
+        const displayMap = {
+            openrouter: 'OpenRouter',
+            grok: 'Grok',
+            qwen: '通义千问',
+            gemini: 'Gemini',
+            ollama: 'Ollama',
+            deepseek: 'DeepSeek',
+            claude: 'Claude',
+            cohere: 'Cohere',
+            mistral: 'Mistral',
+            custom_openai: '自定义 (OpenAI兼容)'
+        };
+
+        if (displayMap[providerKey]) {
+            return displayMap[providerKey];
+        }
+
+        return providerKey.charAt(0).toUpperCase() + providerKey.slice(1);
+    }
+
     // 填充大模型API UI  
     populateAPIUI() {  
         const container = document.getElementById('api-providers-container');  
@@ -2909,10 +2930,10 @@ class AIWriteXConfigManager {
         container.innerHTML = '';  
         
         // 获取所有LLM提供商  
-        const providers = Object.keys(aiforgeConfig.llm).map(key => ({  
-            key: key,  
-            display: key.charAt(0).toUpperCase() + key.slice(1)  
-        }));  
+        const providers = Object.keys(aiforgeConfig.llm).map(key => ({
+            key: key,
+            display: this.getAIForgeProviderDisplayName(key)
+        }));
         
         // 为每个提供商生成卡片  
         providers.forEach(provider => {  
@@ -2930,17 +2951,28 @@ class AIWriteXConfigManager {
     } 
   
     // 创建AIForge LLM提供商卡片  
-    createAIForgeLLMProviderCard(providerKey, providerDisplay, providerData, currentProvider) {  
-        const card = document.createElement('div');  
-        card.className = 'api-provider-card';  
-        if (providerKey === currentProvider) {  
-            card.classList.add('active');  
-        }  
-        
-        // ========== 卡片头部 ==========  
-        const header = document.createElement('div');  
-        header.className = 'provider-header';  
-        
+    createAIForgeLLMProviderCard(providerKey, providerDisplay, providerData, currentProvider) {
+        const card = document.createElement('div');
+        card.className = 'api-provider-card';
+        if (providerKey === currentProvider) {
+            card.classList.add('active');
+        }
+
+        const isCustomOpenAI = providerKey === 'custom_openai';
+        const modelPlaceholder = isCustomOpenAI
+            ? '例如：gpt-4o-mini 或自部署兼容模型名称'
+            : '使用的具体模型名称';
+        const apiKeyPlaceholder = isCustomOpenAI
+            ? 'OpenAI 兼容接口的 API KEY'
+            : '模型提供商的API KEY';
+        const baseUrlPlaceholder = isCustomOpenAI
+            ? '例如：https://api.openai.com/v1 或其他 OpenAI 兼容地址'
+            : 'OpenAI 兼容 API 的基础地址';
+
+        // ========== 卡片头部 ==========
+        const header = document.createElement('div');
+        header.className = 'provider-header';
+
         const titleGroup = document.createElement('div');  
         titleGroup.className = 'provider-title-group';  
         
@@ -2993,26 +3025,26 @@ class AIWriteXConfigManager {
         }  
         
         // 模型  
-        const modelGroup = this.createFormGroup(  
-            '模型',  
-            'text',  
-            `aiforge-${providerKey}-model`,  
-            providerData.model || '',  
-            '使用的具体模型名称',  
-            true  
-        );  
-        modelGroup.classList.add('form-group-third');  
-        
-        // API KEY  
-        const apiKeyGroup = this.createFormGroup(  
-            'API KEY',  
-            'text',  
-            `aiforge-${providerKey}-api-key`,  
-            providerData.api_key || '',  
-            '模型提供商的API KEY',  
-            true  
-        );  
-        apiKeyGroup.classList.add('form-group-third');  
+        const modelGroup = this.createFormGroup(
+            '模型',
+            'text',
+            `aiforge-${providerKey}-model`,
+            providerData.model || '',
+            modelPlaceholder,
+            true
+        );
+        modelGroup.classList.add('form-group-third');
+
+        // API KEY
+        const apiKeyGroup = this.createFormGroup(
+            'API KEY',
+            'text',
+            `aiforge-${providerKey}-api-key`,
+            providerData.api_key || '',
+            apiKeyPlaceholder,
+            true
+        );
+        apiKeyGroup.classList.add('form-group-third');
         
         row1.appendChild(typeGroup);  
         row1.appendChild(modelGroup);  
@@ -3028,11 +3060,11 @@ class AIWriteXConfigManager {
             'text',
             `aiforge-${providerKey}-base-url`,
             providerData.base_url || '',
-            'OpenAI 兼容 API 的基础地址',
+            baseUrlPlaceholder,
             true,
             false
         );
-        baseUrlGroup.classList.add('form-group-third');  
+        baseUrlGroup.classList.add('form-group-third');
         
         // 超时时间  
         const timeoutGroup = this.createFormGroup(  
@@ -3059,32 +3091,40 @@ class AIWriteXConfigManager {
         row2.appendChild(maxTokensGroup);  
         
         // ========== 组装表单 ==========  
-        form.appendChild(row1);  
-        form.appendChild(row2);  
-        
-        // ========== 组装卡片 ==========  
-        card.appendChild(header);  
-        card.appendChild(form);  
-        
+        form.appendChild(row1);
+        form.appendChild(row2);
+
+        if (isCustomOpenAI) {
+            const tip = document.createElement('div');
+            tip.className = 'provider-tip';
+            tip.textContent = '提示：目标服务需兼容 OpenAI API 协议，请填写正确的模型名称、API KEY 与 Base URL。';
+            form.appendChild(tip);
+        }
+
+        // ========== 组装卡片 ==========
+        card.appendChild(header);
+        card.appendChild(form);
+
         return card;  
     }  
     
     // 切换当前AIForge LLM提供商  
-    async setCurrentAIForgeLLMProvider(providerKey) {  
-        await this.updateConfig({  
-            aiforge_config: {  
-                ...this.config.aiforge_config,  
-                default_llm_provider: providerKey  
-            }  
-        });  
-        
-        // 刷新UI  
-        this.populateAIForgeLLMUI();  
-        
-        window.app?.showNotification(  
-            `已切换到${providerKey}`,  
-            'success'  
-        );  
+    async setCurrentAIForgeLLMProvider(providerKey) {
+        const displayName = this.getAIForgeProviderDisplayName(providerKey);
+        await this.updateConfig({
+            aiforge_config: {
+                ...this.config.aiforge_config,
+                default_llm_provider: providerKey
+            }
+        });
+
+        // 刷新UI
+        this.populateAIForgeLLMUI();
+
+        window.app?.showNotification(
+            `已切换到${displayName}`,
+            'success'
+        );
     }
 
     // 更新AIForge LLM提供商字段  
