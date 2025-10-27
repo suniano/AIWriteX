@@ -88,15 +88,20 @@
                     </div>
                 </div>
 
-                <div class="creative-actions">
-                    <button type="button" class="btn btn-primary" id="generate-btn">
-                        <i class="icon-sparkles"></i>
-                        开始生成
-                    </button>
-                    <button type="button" class="btn btn-secondary" id="stop-btn" disabled>
-                        <i class="icon-stop"></i>
-                        停止生成
-                    </button>
+                <div class="creative-card action-card">
+                    <div class="card-body action-body">
+                        <p class="action-description">准备好后点击“开始生成”即可自动完成整篇文章的写作，可随时使用“停止生成”中止任务。</p>
+                        <div class="creative-actions">
+                            <button type="button" class="btn btn-primary" id="generate-btn">
+                                <i class="icon-sparkles"></i>
+                                开始生成
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="stop-btn" disabled>
+                                <i class="icon-stop"></i>
+                                停止生成
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -111,9 +116,13 @@
                     </ul>
                 </div>
 
-                <div class="info-card">
-                    <h3>执行记录</h3>
-                    <p>生成任务启动后，可在右侧实时日志窗口观察执行进度，完成的文章会自动出现在文章管理中。</p>
+                <div class="info-card log-card">
+                    <div class="log-card-header">
+                        <h3>执行日志</h3>
+                        <button type="button" class="log-clear-btn" id="clear-log-btn">清空</button>
+                    </div>
+                    <div id="log-panel" class="log-panel" role="log" aria-live="polite" aria-label="生成任务日志"></div>
+                    <p class="log-help">日志会实时展示任务进度和提示信息，方便排查问题。</p>
                 </div>
             </aside>
         </div>

@@ -12,6 +12,7 @@ class AIWriteXApp {
         this.statusPoller = null;
         this.statusIndicator = null;
         this.manualStop = false;
+        this.logPanelInitialized = false;
 
         this.init();
     }
@@ -99,9 +100,14 @@ class AIWriteXApp {
         }  
     
         // 停止按钮事件  
-        const stopBtn = document.getElementById('stop-btn');  
+        const stopBtn = document.getElementById('stop-btn');
         if (stopBtn) {
             stopBtn.addEventListener('click', () => this.stopGeneration());
+        }
+
+        const clearLogBtn = document.getElementById('clear-log-btn');
+        if (clearLogBtn) {
+            clearLogBtn.addEventListener('click', () => this.clearLogPanel());
         }
 
         // 文章列表刷新
@@ -283,18 +289,27 @@ class AIWriteXApp {
         }
     }
       
-    addLogEntry(logData) {  
-        const logPanel = document.getElementById('log-panel');  
-        if (!logPanel) return;  
-          
-        const entry = document.createElement('div');  
-        entry.className = `log-entry ${logData.type}`;  
-          
-        const timestamp = new Date(logData.timestamp * 1000).toLocaleTimeString();  
-        entry.innerHTML = `  
-            <span class="log-timestamp">[${timestamp}]</span>  
-            <span class="log-message">${this.escapeHtml(logData.message)}</span>  
-        `;  
+    addLogEntry(logData) {
+        const logPanel = document.getElementById('log-panel');
+        if (!logPanel) return;
+
+        const emptyState = logPanel.querySelector('.log-empty');
+        if (emptyState) {
+            emptyState.remove();
+        }
+
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${logData.type}`;
+
+        const timestampValue = typeof logData.timestamp === 'number'
+            ? logData.timestamp
+            : Date.now() / 1000;
+        const timestamp = new Date(timestampValue * 1000).toLocaleTimeString();
+        const message = typeof logData.message === 'string' ? logData.message : '';
+        entry.innerHTML = `
+            <span class="log-timestamp">[${timestamp}]</span>
+            <span class="log-message">${this.escapeHtml(message)}</span>
+        `;
           
         logPanel.appendChild(entry);  
         logPanel.scrollTop = logPanel.scrollHeight;  
@@ -306,11 +321,27 @@ class AIWriteXApp {
         }  
     }  
       
-    escapeHtml(text) {  
-        const div = document.createElement('div');  
-        div.textContent = text;  
-        return div.innerHTML;  
-    }  
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    clearLogPanel(showPlaceholder = true) {
+        const logPanel = document.getElementById('log-panel');
+        if (!logPanel) return;
+
+        logPanel.innerHTML = '';
+
+        if (showPlaceholder) {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'log-empty';
+            emptyState.textContent = this.isGenerating
+                ? '任务执行中，等待日志...'
+                : '等待任务开始...';
+            logPanel.appendChild(emptyState);
+        }
+    }
       
     showView(viewName) {  
         // 更新导航状态  
@@ -448,6 +479,7 @@ class AIWriteXApp {
 
         this.isGenerating = true;
         this.manualStop = false;
+        this.clearLogPanel();
         this.updateGenerationUI(true);
         this.updateStatusIndicator('生成任务已提交...', 'status-progress');
 
@@ -716,6 +748,11 @@ class AIWriteXApp {
 
         this.creativeWorkshopInitialized = true;
         this.updateGenerationUI(this.isGenerating);
+
+        if (!this.logPanelInitialized) {
+            this.clearLogPanel();
+            this.logPanelInitialized = true;
+        }
     }
 
     async loadTemplateCategories() {
