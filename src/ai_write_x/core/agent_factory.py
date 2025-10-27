@@ -30,20 +30,32 @@ class AgentFactory:
 
         # 如果没有指定特殊配置，使用全局配置
         if not llm_config:
-            cache_key = f"{config.api_type}_{config.api_model}"
+            cache_key = f"{config.api_type}_{config.api_model}_{config.api_apibase}"
             if cache_key not in self._llm_cache:
                 if config.api_key:
                     self._llm_cache[cache_key] = LLM(
-                        model=config.api_model, api_key=config.api_key, max_tokens=8192
+                        model=config.api_model,
+                        api_key=config.api_key,
+                        max_tokens=8192,
+                        base_url=config.api_apibase,
+                        timeout=config.api_timeout,
                     )
                 else:
                     return None
             return self._llm_cache.get(cache_key)
 
         # 使用自定义LLM配置
-        cache_key = f"{llm_config.get('model', 'default')}_{llm_config.get('api_key', 'default')}"
+        normalized_config = dict(llm_config)
+        if "base_url" not in normalized_config and normalized_config.get("api_base"):
+            normalized_config.setdefault("base_url", normalized_config["api_base"])
+        normalized_config.setdefault("timeout", config.api_timeout)
+        cache_key = (
+            f"{normalized_config.get('model', 'default')}"
+            f"_{normalized_config.get('api_key', 'default')}"
+            f"_{normalized_config.get('base_url', '')}"
+        )
         if cache_key not in self._llm_cache:
-            self._llm_cache[cache_key] = LLM(**llm_config)
+            self._llm_cache[cache_key] = LLM(**normalized_config)
         return self._llm_cache[cache_key]
 
     def create_agent(self, config: AgentConfig, custom_llm: LLM | None = None) -> Agent:

@@ -234,6 +234,13 @@ class ConfigEditor:
                 ),
             ],
             [
+                sg.Text("请求超时(秒):", size=(15, 1)),
+                sg.InputText(
+                    api_data.get("timeout", 60),
+                    key=f"-{api_name}_TIMEOUT-",
+                ),
+            ],
+            [
                 sg.Text("KEY索引*:", size=(15, 1)),
                 sg.InputText(api_data["key_index"], key=f"-{api_name}_KEY_INDEX-"),
             ],
@@ -1668,6 +1675,13 @@ class ConfigEditor:
                             for k in re.split(r",|，", values[f"-{api_name}_API_KEYS-"])
                             if k.strip()
                         ]
+                        timeout_value = values.get(f"-{api_name}_TIMEOUT-", "60")
+                        try:
+                            timeout = int(timeout_value)
+                        except (TypeError, ValueError):
+                            raise ValueError("请求超时必须为正整数")
+                        if timeout <= 0:
+                            raise ValueError("请求超时必须为正整数")
                         if not api_keys:
                             api_keys = [""]  # 确保至少有一个空密钥
                         if key_index >= len(api_keys):
@@ -1680,6 +1694,7 @@ class ConfigEditor:
                             "api_key": api_keys,
                             "model_index": model_index,
                             "api_base": values[f"-{api_name}_API_BASE-"],
+                            "timeout": timeout,
                             "model": models,
                         }
                         config["api"][api_name].update(api_data)

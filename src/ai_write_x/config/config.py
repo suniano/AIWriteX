@@ -107,6 +107,7 @@ class Config:
                         "openrouter/google/gemini-2.0-flash-thinking-exp:free",
                     ],
                     "api_base": "https://openrouter.ai/api/v1",
+                    "timeout": 60,
                 },
                 "Deepseek": {
                     "key": "DEEPSEEK_API_KEY",
@@ -115,6 +116,7 @@ class Config:
                     "model_index": 0,
                     "model": ["deepseek/deepseek-chat", "deepseek/deepseek-reasoner"],
                     "api_base": "https://api.deepseek.com/v1",
+                    "timeout": 60,
                 },
                 "Grok": {
                     "key": "XAI_API_KEY",
@@ -123,6 +125,7 @@ class Config:
                     "model_index": 0,
                     "model": ["xai/grok-3"],
                     "api_base": "https://api.x.ai/v1/chat/completions",
+                    "timeout": 60,
                 },
                 "Qwen": {
                     "key": "OPENAI_API_KEY",
@@ -131,6 +134,7 @@ class Config:
                     "model_index": 0,
                     "model": ["openai/qwen-plus"],
                     "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                    "timeout": 60,
                 },
                 "Gemini": {
                     "key": "GEMINI_API_KEY",
@@ -143,6 +147,7 @@ class Config:
                         "gemini/gemini-2.0-flash",
                     ],
                     "api_base": "https://generativelanguage.googleapis.com/v1beta/openai/",
+                    "timeout": 60,
                 },
                 "Ollama": {
                     "key": "OPENAI_API_KEY",
@@ -151,6 +156,7 @@ class Config:
                     "api_key": [],
                     "model": ["ollama/deepseek-r1:14b", "ollama/deepseek-r1:7b"],
                     "api_base": "http://localhost:11434",
+                    "timeout": 120,
                 },
                 "SiliconFlow": {
                     "key": "OPENAI_API_KEY",
@@ -164,6 +170,7 @@ class Config:
                         "openai/Qwen/Qwen3-32B",
                     ],
                     "api_base": "https://api.siliconflow.cn/v1",
+                    "timeout": 60,
                 },
                 "Custom": {
                     "key": "CUSTOM_API_KEY",
@@ -172,6 +179,7 @@ class Config:
                     "model_index": 0,
                     "model": ["gpt-4o-mini"],
                     "api_base": "https://api.openai.com/v1",
+                    "timeout": 60,
                 },
             },
             "img_api": {
@@ -1488,6 +1496,14 @@ class Config:
             if not self.config:
                 raise ValueError("配置未加载")
             return self.config["api"][self.config["api"]["api_type"]]["api_base"]
+
+    @property
+    def api_timeout(self):
+        with self._lock:
+            if not self.config:
+                raise ValueError("配置未加载")
+            provider_config = self.config["api"][self.config["api"]["api_type"]]
+            return provider_config.get("timeout") or provider_config.get("request_timeout") or 60
 
     @property
     def img_api_type(self):
