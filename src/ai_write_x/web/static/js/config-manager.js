@@ -1706,45 +1706,60 @@ class AIWriteXConfigManager {
         };  
         
         // 显示添加输入框  
-        const showAddInput = () => {  
-            dropdown.innerHTML = '';  
-            
-            const input = document.createElement('input');  
-            input.type = 'text';  
-            input.className = 'select-input';  
-            input.placeholder = `输入新的${type}`;  
-            
-            // 回车添加  
-            input.addEventListener('keydown', async (e) => {  
-                if (e.key === 'Enter') {  
-                    const newValue = input.value.trim();  
-                    if (newValue) {  
-                        if (type === 'API KEY') {  
-                            await this.addAPIKey(providerKey, newValue);  
-                        } else {  
-                            await this.addModel(providerKey, newValue);  
-                        }  
-                        
-                        dropdown.style.display = 'none';  
-                    }  
-                } else if (e.key === 'Escape') {  
-                    renderOptions();  
-                }  
-            });  
-            
-            input.addEventListener('blur', () => {  
-                if (!input.value.trim()) {  
-                    renderOptions();  
-                }  
-            });  
-            
-            input.addEventListener('click', (e) => {  
-                e.stopPropagation();  
-            });  
-            
-            dropdown.appendChild(input);  
-            setTimeout(() => input.focus(), 0);  
-        };  
+        const showAddInput = () => {
+            dropdown.innerHTML = '';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'select-input';
+            input.placeholder = `输入新的${type}`;
+
+            let hasSubmitted = false;
+
+            const submitValue = async () => {
+                if (hasSubmitted) {
+                    return;
+                }
+
+                const newValue = input.value.trim();
+                if (!newValue) {
+                    renderOptions();
+                    return;
+                }
+
+                hasSubmitted = true;
+
+                if (type === 'API KEY') {
+                    await this.addAPIKey(providerKey, newValue);
+                } else {
+                    await this.addModel(providerKey, newValue);
+                }
+
+                dropdown.style.display = 'none';
+            };
+
+            // 回车添加
+            input.addEventListener('keydown', async (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    await submitValue();
+                } else if (e.key === 'Escape') {
+                    hasSubmitted = true;
+                    renderOptions();
+                }
+            });
+
+            input.addEventListener('blur', async () => {
+                await submitValue();
+            });
+
+            input.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            dropdown.appendChild(input);
+            setTimeout(() => input.focus(), 0);
+        };
         
         // 初始化选项  
         renderOptions();  
