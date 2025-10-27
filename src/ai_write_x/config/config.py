@@ -1,9 +1,9 @@
 from typing import Any, Dict, Optional
-import copy
 import os
 import yaml
 import threading
 import tomlkit
+from copy import deepcopy
 
 from src.ai_write_x.utils import log
 from src.ai_write_x.utils import utils
@@ -1292,6 +1292,14 @@ class Config:
                     "timeout": 60,
                     "max_tokens": 4096,
                 },
+                "custom_openai": {
+                    "type": "openai",
+                    "model": "",
+                    "api_key": "",
+                    "base_url": "https://api.openai.com/v1",
+                    "timeout": 60,
+                    "max_tokens": 8192,
+                },
             },
             "cache": {
                 "code": {
@@ -1680,6 +1688,21 @@ class Config:
 
         return config_path
 
+    def _merge_default_aiforge_config(self):
+        """确保最新默认AIForge配置中的字段存在于当前配置中"""
+
+        def merge(current: Dict[Any, Any], default: Dict[Any, Any]):
+            for key, value in default.items():
+                if key not in current:
+                    current[key] = deepcopy(value)
+                elif isinstance(value, dict) and isinstance(current[key], dict):
+                    merge(current[key], value)
+
+        if not self.aiforge_config:
+            self.aiforge_config = deepcopy(self.default_aiforge_config)
+        else:
+            merge(self.aiforge_config, self.default_aiforge_config)
+
     def get_sendall_by_appid(self, target_appid):
         for cred in self.config["wechat"]["credentials"]:
             if cred["appid"] == target_appid:
@@ -1729,6 +1752,9 @@ class Config:
                     ret = False
             else:
                 self.aiforge_config = self.default_aiforge_config
+
+            # 合并最新默认配置，确保新增字段（如自定义模型）可用
+            self._merge_default_aiforge_config()
 
             return ret
 
