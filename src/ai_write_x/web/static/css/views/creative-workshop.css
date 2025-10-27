@@ -4,6 +4,10 @@
     flex-direction: column;
     min-height: 100%;
 }
+
+.creative-workshop .creative-layout {
+    height: 100%;
+}
   
 .dimension-controls {  
     display: grid;  
