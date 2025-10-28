@@ -1726,29 +1726,15 @@ class AIWriteXConfigManager {
             });  
         };  
         
-        // 显示添加输入框  
+        // 显示添加输入框(使用对话框避免焦点问题)
         const showAddInput = () => {
-            dropdown.innerHTML = '';
-
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'select-input';
-            input.placeholder = `输入新的${type}`;
-
-            let hasSubmitted = false;
-
-            const submitValue = async () => {
-                if (hasSubmitted) {
-                    return;
-                }
-
-                const newValue = input.value.trim();
+            const handleSubmit = async (rawValue) => {
+                const newValue = (rawValue || '').trim();
                 if (!newValue) {
                     renderOptions();
+                    dropdown.style.display = 'block';
                     return;
                 }
-
-                hasSubmitted = true;
 
                 if (type === 'API KEY') {
                     await this.addAPIKey(providerKey, newValue);
@@ -1759,27 +1745,37 @@ class AIWriteXConfigManager {
                 dropdown.style.display = 'none';
             };
 
-            // 回车添加
-            input.addEventListener('keydown', async (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    await submitValue();
-                } else if (e.key === 'Escape') {
-                    hasSubmitted = true;
-                    renderOptions();
+            const handleCancel = () => {
+                renderOptions();
+                dropdown.style.display = 'block';
+            };
+
+            if (window.dialogManager?.showInput) {
+                window.dialogManager.showInput(
+                    `添加${type}`,
+                    `请输入新的${type}`,
+                    '',
+                    async (value) => {
+                        try {
+                            await handleSubmit(value);
+                        } catch (error) {
+                            console.error('添加配置项失败:', error);
+                            window.app?.showNotification('添加失败，请重试', 'error');
+                            handleCancel();
+                        }
+                    },
+                    handleCancel
+                );
+            } else {
+                const value = window.prompt(`请输入新的${type}`, '');
+                if (value === null) {
+                    handleCancel();
+                } else {
+                    handleSubmit(value).catch((error) => {
+                        console.error('添加配置项失败:', error);
+                    });
                 }
-            });
-
-            input.addEventListener('blur', async () => {
-                await submitValue();
-            });
-
-            input.addEventListener('click', (e) => {
-                e.stopPropagation();
-            });
-
-            dropdown.appendChild(input);
-            setTimeout(() => input.focus(), 0);
+            }
         };
         
         // 初始化选项  
