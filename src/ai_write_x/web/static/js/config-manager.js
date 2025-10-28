@@ -1726,8 +1726,42 @@ class AIWriteXConfigManager {
             });  
         };  
         
-        // 显示添加输入框  
+        // 显示添加输入框
         const showAddInput = () => {
+            const handleSubmit = async (rawValue) => {
+                const newValue = (rawValue || '').trim();
+                if (!newValue) {
+                    renderOptions();
+                    return;
+                }
+
+                if (type === 'API KEY') {
+                    await this.addAPIKey(providerKey, newValue);
+                } else {
+                    await this.addModel(providerKey, newValue);
+                }
+
+                dropdown.style.display = 'none';
+            };
+
+            // 优先使用全局对话框，避免内嵌输入在部分环境下无法输入的问题
+            if (typeof window !== 'undefined' && window.dialogManager && typeof window.dialogManager.showInput === 'function') {
+                dropdown.style.display = 'none';
+                window.dialogManager.showInput(
+                    `添加${type}`,
+                    `请输入新的${type}`,
+                    '',
+                    async (value) => {
+                        await handleSubmit(value);
+                    },
+                    () => {
+                        renderOptions();
+                        dropdown.style.display = 'block';
+                    }
+                );
+                return;
+            }
+
             dropdown.innerHTML = '';
 
             const input = document.createElement('input');
@@ -1742,21 +1776,8 @@ class AIWriteXConfigManager {
                     return;
                 }
 
-                const newValue = input.value.trim();
-                if (!newValue) {
-                    renderOptions();
-                    return;
-                }
-
                 hasSubmitted = true;
-
-                if (type === 'API KEY') {
-                    await this.addAPIKey(providerKey, newValue);
-                } else {
-                    await this.addModel(providerKey, newValue);
-                }
-
-                dropdown.style.display = 'none';
+                await handleSubmit(input.value);
             };
 
             // 回车添加
